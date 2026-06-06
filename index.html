@@ -10,72 +10,46 @@
     :root { --blue: #1A5FD4; --white: #ffffff; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0f1e; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
 
-    /* ── 로딩/시작 화면 ── */
+    #ar-container { position: fixed; inset: 0; width: 100%; height: 100%; }
+    #ar-container canvas, #ar-container video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+
+    /* 시작 화면 */
     #splash {
-      position: fixed; inset: 0;
-      background: #0a0f1e;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 28px; z-index: 100;
-      transition: opacity 0.5s ease;
+      position: fixed; inset: 0; background: #0a0f1e;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 32px; z-index: 100; transition: opacity 0.5s ease;
     }
     #splash.hidden { opacity: 0; pointer-events: none; }
 
     .splash-logo { font-size: 40px; font-weight: 900; letter-spacing: 0.18em; color: #fff; }
     .splash-logo span { color: var(--blue); }
+    .splash-sub { font-size: 13px; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; text-align: center; line-height: 1.8; }
 
     #start-btn {
-      padding: 16px 48px;
-      border-radius: 999px;
-      background: var(--blue);
-      color: white; font-size: 17px; font-weight: 700;
-      border: none; cursor: pointer;
+      padding: 16px 52px; border-radius: 999px;
+      background: var(--blue); color: white;
+      font-size: 17px; font-weight: 700; border: none; cursor: pointer;
       box-shadow: 0 4px 24px rgba(26,95,212,0.5);
       letter-spacing: 0.04em;
+      -webkit-appearance: none;
     }
+    #start-btn:active { opacity: 0.8; transform: scale(0.97); }
 
-    .splash-sub { font-size: 13px; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
-
-    /* 로딩 중 상태 */
-    #loading-state {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-    }
-    #loading-state.show { display: flex; }
-
-    .loading-bar-wrap { width: 160px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.15); overflow: hidden; }
+    .loading-bar-wrap { width: 160px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.15); overflow: hidden; display: none; }
     .loading-bar { height: 100%; background: var(--blue); border-radius: 2px; width: 0%; transition: width 0.4s ease; }
-    .loading-sub { font-size: 12px; color: rgba(255,255,255,0.4); letter-spacing: 0.08em; }
+    #loading-text { font-size: 12px; color: rgba(255,255,255,0.4); letter-spacing: 0.08em; display: none; }
 
-    /* ── AR ── */
-    #ar-container { position: fixed; inset: 0; width: 100%; height: 100%; }
-    #ar-container canvas, #ar-container video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
-
-    /* ── UI ── */
+    /* UI */
     #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; transition: opacity 0.4s; }
     #ui.hidden { opacity: 0; pointer-events: none; }
 
-    #header {
-      position: absolute; top: 0; left: 0; right: 0;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 52px 20px 16px;
-      background: linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%);
-      pointer-events: auto;
-    }
+    #header { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 52px 20px 16px; background: linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%); pointer-events: auto; }
     #logo-icon { width: 36px; height: 36px; border-radius: 10px; overflow: hidden; background: var(--blue); display: flex; align-items: center; justify-content: center; }
     #logo-icon img { width: 26px; height: 26px; object-fit: contain; }
     #logo-text { font-size: 22px; font-weight: 800; letter-spacing: 0.12em; color: #fff; }
     #info-btn { width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.6); color: #fff; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; background: transparent; pointer-events: auto; }
 
-    #bottom-controls {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      display: flex; flex-direction: column; align-items: center; gap: 14px;
-      padding: 20px 20px 44px;
-      background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%);
-      pointer-events: auto;
-    }
+    #bottom-controls { position: absolute; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px 20px 44px; background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%); pointer-events: auto; }
 
     #light-row { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 280px; }
     .sun-icon { width: 18px; height: 18px; opacity: 0.7; flex-shrink: 0; }
@@ -110,21 +84,12 @@
 </head>
 <body>
 
-<!-- 시작 화면 -->
 <div id="splash">
   <div class="splash-logo">W<span>E</span>IV</div>
-
-  <!-- 시작 전: 버튼 -->
-  <div id="btn-state">
-    <button id="start-btn">카메라 시작</button>
-    <div class="splash-sub" style="margin-top:12px">카메라 접근 권한이 필요합니다</div>
-  </div>
-
-  <!-- 로딩 중 -->
-  <div id="loading-state">
-    <div class="loading-bar-wrap"><div class="loading-bar" id="loading-bar"></div></div>
-    <div class="loading-sub" id="loading-sub">로딩 중...</div>
-  </div>
+  <button id="start-btn">카메라 시작</button>
+  <div class="splash-sub">버튼을 누르면 카메라 접근 권한을 요청합니다</div>
+  <div class="loading-bar-wrap" id="bar-wrap"><div class="loading-bar" id="loading-bar"></div></div>
+  <div id="loading-text">로딩 중...</div>
 </div>
 
 <div id="bw-overlay"></div>
@@ -195,38 +160,28 @@
   let isShapeMode = false, isCleanView = false, isBW = false;
   let modelDefault = null, modelShape = null, targetFound = false;
 
-  const splashEl = document.getElementById('splash');
-  const btnState = document.getElementById('btn-state');
-  const loadingState = document.getElementById('loading-state');
+  const splashEl   = document.getElementById('splash');
+  const barWrap    = document.getElementById('bar-wrap');
   const loadingBar = document.getElementById('loading-bar');
-  const loadingSub = document.getElementById('loading-sub');
-  const hintEl = document.getElementById('hint');
-  const uiEl = document.getElementById('ui');
+  const loadingTxt = document.getElementById('loading-text');
+  const startBtn   = document.getElementById('start-btn');
+  const hintEl     = document.getElementById('hint');
+  const uiEl       = document.getElementById('ui');
 
   function setProgress(pct, text) {
     loadingBar.style.width = pct + '%';
-    loadingSub.textContent = text;
+    loadingTxt.textContent = text;
   }
 
-  function showLoading() {
-    btnState.style.display = 'none';
-    loadingState.classList.add('show');
+  function showProgress() {
+    startBtn.style.display = 'none';
+    barWrap.style.display = 'block';
+    loadingTxt.style.display = 'block';
   }
 
-  document.getElementById('start-btn').addEventListener('click', async () => {
-    showLoading();
-    setProgress(10, '카메라 권한 요청 중...');
-
-    try {
-      await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    } catch(e) {
-      btnState.style.display = 'block';
-      loadingState.classList.remove('show');
-      alert('카메라 권한을 허용해주세요.');
-      return;
-    }
-
-    setProgress(30, 'AR 엔진 초기화 중...');
+  startBtn.addEventListener('click', async () => {
+    showProgress();
+    setProgress(20, 'AR 엔진 초기화 중...');
 
     const mindarThree = new MindARThree({
       container: document.getElementById('ar-container'),
@@ -267,10 +222,10 @@
       });
     }
 
-    setProgress(50, '기본 모델 로딩 중...');
+    setProgress(45, '기본 모델 로딩 중...');
     modelDefault = await loadGLB('./elephant-default.glb');
 
-    setProgress(75, '도형 모델 로딩 중...');
+    setProgress(70, '도형 모델 로딩 중...');
     modelShape = await loadGLB('./elephant_shape.glb');
 
     const anchor = mindarThree.addAnchor(0);
@@ -288,7 +243,9 @@
       if (!isCleanView) hintEl.classList.remove('hidden');
     };
 
-    setProgress(90, 'AR 시작 중...');
+    setProgress(90, 'AR 시작 중...\n(카메라 권한을 허용해주세요)');
+
+    // MindAR.start()가 내부적으로 카메라 권한 요청함
     await mindarThree.start();
 
     setProgress(100, '완료!');
@@ -305,7 +262,6 @@
     });
   });
 
-  // 모드 토글
   document.getElementById('mode-toggle').addEventListener('click', () => {
     isShapeMode = !isShapeMode;
     document.getElementById('mode-toggle').classList.toggle('shape-active', isShapeMode);
@@ -315,7 +271,6 @@
     }
   });
 
-  // 클린뷰
   document.getElementById('cleanview-btn').addEventListener('click', () => {
     isCleanView = !isCleanView;
     uiEl.classList.toggle('hidden', isCleanView);
@@ -323,14 +278,12 @@
     else if (!targetFound) hintEl.classList.remove('hidden');
   });
 
-  // BW
   document.getElementById('bw-btn').addEventListener('click', () => {
     isBW = !isBW;
     document.getElementById('bw-overlay').classList.toggle('active', isBW);
     document.getElementById('bw-btn').classList.toggle('active', isBW);
   });
 
-  // info
   document.getElementById('info-btn').addEventListener('click', () => {
     alert('WEIV - AR 정물 미술 교구 라이브러리\n토큰을 카메라에 비춰 3D 정물을 관찰하세요.');
   });
