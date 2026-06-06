@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>WEIV</title>
 
-  <!-- MindAR + Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
 
   <style>
@@ -13,21 +12,16 @@
 
     :root {
       --blue: #1A5FD4;
-      --blue-light: #3B7FFF;
-      --gray-bg: rgba(255,255,255,0.12);
-      --gray-pill: rgba(255,255,255,0.18);
       --white: #ffffff;
-      --inactive: rgba(255,255,255,0.45);
     }
 
     html, body {
       width: 100%; height: 100%;
       overflow: hidden;
       background: #111;
-      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* AR 컨테이너 */
     #ar-container {
       position: fixed;
       inset: 0;
@@ -35,7 +29,6 @@
       height: 100%;
     }
 
-    /* MindAR이 생성하는 canvas/video 전체화면 */
     #ar-container canvas,
     #ar-container video {
       width: 100% !important;
@@ -43,7 +36,6 @@
       object-fit: cover !important;
     }
 
-    /* ── UI 레이어 ── */
     #ui {
       position: fixed;
       inset: 0;
@@ -53,7 +45,6 @@
     }
     #ui.hidden { opacity: 0; pointer-events: none; }
 
-    /* 상단 헤더 */
     #header {
       position: absolute;
       top: 0; left: 0; right: 0;
@@ -79,7 +70,6 @@
       font-weight: 800;
       letter-spacing: 0.12em;
       color: var(--white);
-      text-transform: uppercase;
     }
 
     #info-btn {
@@ -95,7 +85,6 @@
       pointer-events: auto;
     }
 
-    /* 하단 컨트롤 */
     #bottom-controls {
       position: absolute;
       bottom: 0; left: 0; right: 0;
@@ -108,7 +97,6 @@
       pointer-events: auto;
     }
 
-    /* 라이트 슬라이더 */
     #light-row {
       display: flex;
       align-items: center;
@@ -117,11 +105,7 @@
       max-width: 280px;
     }
 
-    .sun-icon {
-      width: 18px; height: 18px;
-      opacity: 0.7;
-      flex-shrink: 0;
-    }
+    .sun-icon { width: 18px; height: 18px; opacity: 0.7; flex-shrink: 0; }
 
     #light-slider {
       -webkit-appearance: none;
@@ -141,7 +125,6 @@
       cursor: pointer;
     }
 
-    /* 보조 버튼 행 (클린뷰 + BW) */
     #aux-row {
       display: flex;
       align-items: center;
@@ -151,7 +134,7 @@
     .aux-btn {
       width: 44px; height: 44px;
       border-radius: 50%;
-      background: var(--gray-bg);
+      background: rgba(255,255,255,0.12);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border: 1.5px solid rgba(255,255,255,0.2);
@@ -161,10 +144,8 @@
     }
     .aux-btn:active { transform: scale(0.93); }
     .aux-btn.active { background: rgba(255,255,255,0.28); }
-
     .aux-btn svg { width: 22px; height: 22px; }
 
-    /* 모드 토글 pill */
     #mode-toggle {
       width: 120px; height: 52px;
       border-radius: 999px;
@@ -177,10 +158,8 @@
       padding: 4px;
       cursor: pointer;
       position: relative;
-      transition: background 0.2s;
     }
 
-    /* 슬라이딩 배경 원 */
     #toggle-bg {
       position: absolute;
       width: 46px; height: 44px;
@@ -203,14 +182,11 @@
     }
     .toggle-icon svg { width: 26px; height: 26px; }
 
-    /* 기본모드 활성: 왼쪽 파랑(흰 아이콘), 오른쪽 회색 */
     #icon-default { opacity: 1; }
     #icon-shape   { opacity: 0.45; }
-
     #mode-toggle.shape-active #icon-default { opacity: 0.45; }
     #mode-toggle.shape-active #icon-shape   { opacity: 1; }
 
-    /* 마커 인식 안내 */
     #hint {
       position: fixed;
       top: 50%; left: 50%;
@@ -238,26 +214,22 @@
       color: rgba(255,255,255,0.75);
       letter-spacing: 0.05em;
       text-align: center;
-      line-height: 1.6;
     }
 
-    /* BW 필터 오버레이 */
     #bw-overlay {
       position: fixed;
       inset: 0;
-      background: transparent;
       pointer-events: none;
       z-index: 8;
-      transition: opacity 0.3s;
       opacity: 0;
+      transition: opacity 0.3s;
     }
     #bw-overlay.active {
       opacity: 1;
+      background: rgba(128,128,128,1);
       mix-blend-mode: color;
-      background: #808080;
     }
 
-    /* 로딩 화면 */
     #loading {
       position: fixed;
       inset: 0;
@@ -290,12 +262,8 @@
       height: 100%;
       background: var(--blue);
       border-radius: 2px;
-      animation: loadprog 1.8s ease forwards;
-    }
-    @keyframes loadprog {
-      0%  { width: 0%; }
-      60% { width: 75%; }
-      100%{ width: 100%; }
+      width: 0%;
+      transition: width 0.3s ease;
     }
 
     .loading-sub {
@@ -303,33 +271,41 @@
       color: rgba(255,255,255,0.4);
       letter-spacing: 0.08em;
     }
+
+    #start-btn {
+      margin-top: 8px;
+      padding: 14px 36px;
+      border-radius: 999px;
+      background: var(--blue);
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: none;
+      letter-spacing: 0.05em;
+    }
   </style>
 </head>
 <body>
 
-<!-- 로딩 화면 -->
 <div id="loading">
   <div class="loading-logo">W<span>E</span>IV</div>
-  <div class="loading-bar-wrap"><div class="loading-bar"></div></div>
-  <div class="loading-sub">카메라를 준비하는 중...</div>
+  <div class="loading-bar-wrap"><div class="loading-bar" id="loading-bar"></div></div>
+  <div class="loading-sub" id="loading-sub">초기화 중...</div>
+  <button id="start-btn">카메라 시작</button>
 </div>
 
-<!-- BW 필터 오버레이 -->
 <div id="bw-overlay"></div>
 
-<!-- 마커 인식 안내 -->
 <div id="hint">
   <div class="hint-ring"></div>
   <div class="hint-text">토큰을 카메라에 비춰주세요</div>
 </div>
 
-<!-- AR 컨테이너 -->
 <div id="ar-container"></div>
 
-<!-- UI 레이어 -->
 <div id="ui">
-
-  <!-- 상단 헤더 -->
   <div id="header">
     <div id="logo-icon">
       <img src="logo.png" alt="WEIV" />
@@ -338,10 +314,7 @@
     <button id="info-btn">i</button>
   </div>
 
-  <!-- 하단 컨트롤 -->
   <div id="bottom-controls">
-
-    <!-- 라이트 슬라이더 -->
     <div id="light-row">
       <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
         <circle cx="12" cy="12" r="4"/>
@@ -357,32 +330,24 @@
       <input type="range" id="light-slider" min="0" max="100" value="60" />
     </div>
 
-    <!-- 클린뷰 + BW -->
     <div id="aux-row">
-      <!-- 클린뷰 (눈 감은 아이콘) -->
-      <button class="aux-btn" id="cleanview-btn" title="클린뷰">
+      <button class="aux-btn" id="cleanview-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
           <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
           <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
           <line x1="1" y1="1" x2="23" y2="23"/>
         </svg>
       </button>
-
-      <!-- BW 모드 -->
-      <button class="aux-btn" id="bw-btn" title="흑백 필터">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M12 3a9 9 0 0 1 0 18" fill="white" stroke="none"/>
-          <path d="M12 3a9 9 0 0 1 0 18" fill="none" stroke="white" stroke-width="2"/>
+      <button class="aux-btn" id="bw-btn">
+        <svg viewBox="0 0 24 24" stroke="white" stroke-width="2">
+          <circle cx="12" cy="12" r="9" fill="none"/>
+          <path d="M12 3a9 9 0 0 1 0 18z" fill="white" stroke="none"/>
         </svg>
       </button>
     </div>
 
-    <!-- 모드 토글 -->
     <div id="mode-toggle">
       <div id="toggle-bg"></div>
-
-      <!-- 기본 모드 아이콘 (큐브) -->
       <div class="toggle-icon" id="icon-default">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
@@ -390,8 +355,6 @@
           <line x1="12" y1="22.08" x2="12" y2="12"/>
         </svg>
       </div>
-
-      <!-- 도형 모드 아이콘 (AR 뷰파인더) -->
       <div class="toggle-icon" id="icon-shape">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
           <path d="M1 4.5V3a2 2 0 0 1 2-2h1.5"/>
@@ -406,156 +369,182 @@
         </svg>
       </div>
     </div>
-
   </div>
 </div>
 
-<script type="module">
-  import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-  import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
-  import { MindARThree } from 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js';
+<script>
+  // MindAR 번들에서 THREE 가져오기
+  const { MindARThree } = window.MINDAR.IMAGE;
+  const THREE = window.THREE;
 
-  // ── 상태 ──
   let isShapeMode = false;
   let isCleanView = false;
   let isBW = false;
   let modelDefault = null;
   let modelShape = null;
   let targetFound = false;
-  let lightIntensity = 0.6;
+  let mindarThree = null;
 
-  // ── MindAR 초기화 ──
-  const mindarThree = new MindARThree({
-    container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets.mind',
-    uiLoading: 'no',
-    uiScanning: 'no',
-    uiError: 'no',
-  });
+  const loadingEl = document.getElementById('loading');
+  const loadingBar = document.getElementById('loading-bar');
+  const loadingSub = document.getElementById('loading-sub');
+  const startBtn = document.getElementById('start-btn');
+  const hintEl = document.getElementById('hint');
+  const uiEl = document.getElementById('ui');
 
-  const { renderer, scene, camera } = mindarThree;
-
-  // ── 조명 ──
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-  scene.add(ambientLight);
-
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(0, 5, 5);
-  scene.add(dirLight);
-
-  // ── GLB 로더 ──
-  const loader = new GLTFLoader();
-
-  const anchor = mindarThree.addAnchor(0);
-
-  function loadModel(src) {
-    return new Promise((resolve) => {
-      loader.load(src, (gltf) => {
-        const model = gltf.scene;
-        // 모델 크기 자동 조정
-        const box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = 1.0 / maxDim;
-        model.scale.setScalar(scale);
-        // 중심 정렬
-        const center = box.getCenter(new THREE.Vector3());
-        model.position.sub(center.multiplyScalar(scale));
-        resolve(model);
-      });
-    });
+  function setLoadingProgress(pct, text) {
+    loadingBar.style.width = pct + '%';
+    loadingSub.textContent = text;
   }
 
-  // ── 두 모델 모두 로드 ──
-  Promise.all([
-    loadModel('./elephant-default.glb'),
-    loadModel('./elephant_shape.glb'),
-  ]).then(([def, shape]) => {
-    modelDefault = def;
-    modelShape = shape;
+  // 사파리는 사용자 제스처 없이 카메라 못 켜는 경우가 있어서
+  // 버튼으로 시작하는 방식 추가
+  async function initAR() {
+    startBtn.style.display = 'none';
+    setLoadingProgress(20, '카메라 권한 요청 중...');
 
+    try {
+      // 카메라 권한 먼저 요청
+      await navigator.mediaDevices.getUserMedia({ video: true });
+    } catch(e) {
+      setLoadingProgress(0, '카메라 권한이 필요합니다');
+      startBtn.style.display = 'block';
+      startBtn.textContent = '다시 시도';
+      return;
+    }
+
+    setLoadingProgress(40, '3D 모델 로딩 중...');
+
+    mindarThree = new MindARThree({
+      container: document.getElementById('ar-container'),
+      imageTargetSrc: './targets.mind',
+      uiLoading: 'no',
+      uiScanning: 'no',
+      uiError: 'no',
+    });
+
+    const { renderer, scene, camera } = mindarThree;
+
+    // 조명
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(0, 5, 5);
+    scene.add(dirLight);
+
+    // 슬라이더 → 조명 연동
+    document.getElementById('light-slider').addEventListener('input', (e) => {
+      const v = e.target.value / 100;
+      ambientLight.intensity = v * 0.8;
+      dirLight.intensity = v * 1.2;
+    });
+
+    // GLB 로더
+    const loader = new THREE.GLTFLoader
+      ? new THREE.GLTFLoader()
+      : null;
+
+    // MindAR 번들에 GLTFLoader 포함 여부 확인 후 동적 import
+    let GLTFLoader;
+    try {
+      const mod = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js');
+      GLTFLoader = mod.GLTFLoader;
+    } catch(e) {
+      // fallback: THREE 내장
+      GLTFLoader = THREE.GLTFLoader;
+    }
+
+    function loadGLB(src) {
+      return new Promise((resolve, reject) => {
+        const l = new GLTFLoader();
+        l.load(src, (gltf) => {
+          const model = gltf.scene;
+          const box = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const scale = 1.0 / maxDim;
+          model.scale.setScalar(scale);
+          const center = box.getCenter(new THREE.Vector3());
+          model.position.sub(center.multiplyScalar(scale));
+          resolve(model);
+        }, undefined, reject);
+      });
+    }
+
+    setLoadingProgress(60, '기본 모델 로딩 중...');
+    modelDefault = await loadGLB('./elephant-default.glb');
+
+    setLoadingProgress(80, '도형 모델 로딩 중...');
+    modelShape = await loadGLB('./elephant_shape.glb');
+
+    const anchor = mindarThree.addAnchor(0);
     anchor.group.add(modelDefault);
     anchor.group.add(modelShape);
-
     modelDefault.visible = true;
     modelShape.visible = false;
 
-    // 로딩 완료 → AR 시작
-    startAR();
-  });
+    anchor.onTargetFound = () => {
+      targetFound = true;
+      hintEl.classList.add('hidden');
+    };
+    anchor.onTargetLost = () => {
+      targetFound = false;
+      if (!isCleanView) hintEl.classList.remove('hidden');
+    };
 
-  async function startAR() {
+    setLoadingProgress(95, 'AR 시작 중...');
     await mindarThree.start();
 
-    // 로딩 화면 숨김
-    const loading = document.getElementById('loading');
-    loading.classList.add('hidden');
-    setTimeout(() => loading.style.display = 'none', 700);
+    setLoadingProgress(100, '완료!');
+    setTimeout(() => {
+      loadingEl.classList.add('hidden');
+      setTimeout(() => loadingEl.style.display = 'none', 700);
+    }, 300);
 
     renderer.setAnimationLoop(() => {
       renderer.render(scene, camera);
     });
   }
 
-  // ── 마커 감지 이벤트 ──
-  anchor.onTargetFound = () => {
-    targetFound = true;
-    document.getElementById('hint').classList.add('hidden');
-  };
-  anchor.onTargetLost = () => {
-    targetFound = false;
-    if (!isCleanView) {
-      document.getElementById('hint').classList.remove('hidden');
-    }
-  };
+  // 페이지 로드 시 버튼 보여주고 시작 대기
+  window.addEventListener('load', () => {
+    setLoadingProgress(0, '시작 버튼을 눌러주세요');
+    startBtn.style.display = 'block';
+    startBtn.textContent = '카메라 시작';
+  });
 
-  // ── 모드 토글 ──
-  const modeToggle = document.getElementById('mode-toggle');
-  modeToggle.addEventListener('click', () => {
+  startBtn.addEventListener('click', initAR);
+
+  // 모드 토글
+  document.getElementById('mode-toggle').addEventListener('click', () => {
     isShapeMode = !isShapeMode;
-    modeToggle.classList.toggle('shape-active', isShapeMode);
-
+    document.getElementById('mode-toggle').classList.toggle('shape-active', isShapeMode);
     if (modelDefault && modelShape) {
       modelDefault.visible = !isShapeMode;
       modelShape.visible = isShapeMode;
     }
   });
 
-  // ── 클린뷰 ──
-  const cleanviewBtn = document.getElementById('cleanview-btn');
-  const ui = document.getElementById('ui');
-  const hint = document.getElementById('hint');
-
-  cleanviewBtn.addEventListener('click', () => {
+  // 클린뷰
+  document.getElementById('cleanview-btn').addEventListener('click', () => {
     isCleanView = !isCleanView;
     if (isCleanView) {
-      ui.classList.add('hidden');
-      hint.classList.add('hidden');
+      uiEl.classList.add('hidden');
+      hintEl.classList.add('hidden');
     } else {
-      ui.classList.remove('hidden');
-      if (!targetFound) hint.classList.remove('hidden');
+      uiEl.classList.remove('hidden');
+      if (!targetFound) hintEl.classList.remove('hidden');
     }
   });
 
-  // ── BW 필터 ──
-  const bwBtn = document.getElementById('bw-btn');
-  const bwOverlay = document.getElementById('bw-overlay');
-
-  bwBtn.addEventListener('click', () => {
+  // BW
+  document.getElementById('bw-btn').addEventListener('click', () => {
     isBW = !isBW;
-    bwOverlay.classList.toggle('active', isBW);
-    bwBtn.classList.toggle('active', isBW);
+    document.getElementById('bw-overlay').classList.toggle('active', isBW);
+    document.getElementById('bw-btn').classList.toggle('active', isBW);
   });
 
-  // ── 라이트 슬라이더 ──
-  const lightSlider = document.getElementById('light-slider');
-  lightSlider.addEventListener('input', (e) => {
-    lightIntensity = e.target.value / 100;
-    ambientLight.intensity = lightIntensity * 0.7;
-    dirLight.intensity = lightIntensity * 1.2;
-  });
-
-  // ── ⓘ 버튼 (추후 확장) ──
+  // info
   document.getElementById('info-btn').addEventListener('click', () => {
     alert('WEIV - AR 정물 미술 교구 라이브러리\n토큰을 카메라에 비춰 3D 정물을 관찰하세요.');
   });
