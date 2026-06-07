@@ -15,70 +15,49 @@
 </head>
 <body>
   <div style="font-size:28px;font-weight:900;letter-spacing:0.15em;">WEIV 테스트</div>
-
   <div class="status">MindAR 로드: <span id="mindar-status">확인 중...</span></div>
   <div class="status">THREE.js 로드: <span id="three-status">확인 중...</span></div>
   <div class="status">GLTFLoader: <span id="gltf-status">확인 중...</span></div>
   <div class="status">카메라 API: <span id="camera-status">확인 중...</span></div>
-
   <button onclick="testCamera()">카메라 권한 테스트</button>
   <div id="camera-result"></div>
   <div id="log"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
-    onload="onMindARLoad()"
-    onerror="onMindARFail()">
-  </script>
-
+  <script src="./mindar-image-three.prod.js" onload="onMindARLoad()" onerror="onMindARFail()"></script>
   <script>
-    function log(msg) {
-      document.getElementById('log').textContent += msg + '\n';
-    }
+    function log(msg) { document.getElementById('log').textContent += msg + '\n'; }
 
     function onMindARLoad() {
-      // MindAR
       const mindarOk = !!(window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.MindARThree);
-      document.getElementById('mindar-status').textContent = mindarOk ? '✅ OK' : '❌ 없음';
-      document.getElementById('mindar-status').className = mindarOk ? 'ok' : 'fail';
-      log('MINDAR: ' + JSON.stringify(Object.keys(window.MINDAR || {})));
+      document.getElementById('mindar-status').innerHTML = mindarOk ? '<span class="ok">✅ OK</span>' : '<span class="fail">❌ 없음</span>';
+      log('MINDAR keys: ' + JSON.stringify(Object.keys(window.MINDAR || {})));
 
-      // THREE
       const threeOk = !!window.THREE;
-      document.getElementById('three-status').textContent = threeOk ? '✅ OK' : '❌ 없음';
-      document.getElementById('three-status').className = threeOk ? 'ok' : 'fail';
-      if (window.THREE) log('THREE r' + (THREE.REVISION || '?'));
+      document.getElementById('three-status').innerHTML = threeOk ? '<span class="ok">✅ OK (r'+THREE.REVISION+')</span>' : '<span class="fail">❌ 없음</span>';
 
-      // GLTFLoader
       const gltfOk = !!(window.THREE && window.THREE.GLTFLoader);
-      document.getElementById('gltf-status').textContent = gltfOk ? '✅ OK' : '❌ 없음 (별도 import 필요)';
-      document.getElementById('gltf-status').className = gltfOk ? 'ok' : 'fail';
+      document.getElementById('gltf-status').innerHTML = gltfOk ? '<span class="ok">✅ OK</span>' : '<span class="fail">❌ 없음 (별도 필요)</span>';
 
-      // Camera API
       const camOk = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-      document.getElementById('camera-status').textContent = camOk ? '✅ OK' : '❌ 없음';
-      document.getElementById('camera-status').className = camOk ? 'ok' : 'fail';
+      document.getElementById('camera-status').innerHTML = camOk ? '<span class="ok">✅ OK</span>' : '<span class="fail">❌ 없음</span>';
     }
 
     function onMindARFail() {
-      document.getElementById('mindar-status').textContent = '❌ 로드 실패';
-      document.getElementById('mindar-status').className = 'fail';
-      log('MindAR CDN 로드 실패');
+      document.getElementById('mindar-status').innerHTML = '<span class="fail">❌ 로드 실패</span>';
+      log('MindAR 로드 실패');
     }
 
     async function testCamera() {
       const result = document.getElementById('camera-result');
-      result.style.color = 'rgba(255,255,255,0.6)';
       result.textContent = '권한 요청 중...';
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         stream.getTracks().forEach(t => t.stop());
         result.style.color = '#4ade80';
         result.textContent = '✅ 카메라 권한 OK!';
-        log('카메라 권한 허용됨');
       } catch(e) {
         result.style.color = '#f87171';
-        result.textContent = '❌ 실패: ' + e.name + ' - ' + e.message;
-        log('카메라 에러: ' + e.name);
+        result.textContent = '❌ ' + e.name + ': ' + e.message;
       }
     }
   </script>
