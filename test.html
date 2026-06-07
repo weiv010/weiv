@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WEIV 테스트</title>
+  <style>
+    body { background: #0a0f1e; color: white; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 16px; margin: 0; }
+    .status { font-size: 14px; color: rgba(255,255,255,0.5); }
+    .ok { color: #4ade80; font-weight: bold; }
+    .fail { color: #f87171; font-weight: bold; }
+    button { padding: 14px 36px; border-radius: 999px; background: #1A5FD4; color: white; font-size: 16px; font-weight: 700; border: none; cursor: pointer; margin-top: 8px; }
+    #log { font-size: 12px; color: rgba(255,255,255,0.4); max-width: 320px; text-align: center; line-height: 1.8; }
+  </style>
+</head>
+<body>
+  <div style="font-size:28px;font-weight:900;letter-spacing:0.15em;">WEIV 테스트</div>
+
+  <div class="status">MindAR 로드: <span id="mindar-status">확인 중...</span></div>
+  <div class="status">THREE.js 로드: <span id="three-status">확인 중...</span></div>
+  <div class="status">GLTFLoader: <span id="gltf-status">확인 중...</span></div>
+  <div class="status">카메라 API: <span id="camera-status">확인 중...</span></div>
+
+  <button onclick="testCamera()">카메라 권한 테스트</button>
+  <div id="camera-result"></div>
+  <div id="log"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+    onload="onMindARLoad()"
+    onerror="onMindARFail()">
+  </script>
+
+  <script>
+    function log(msg) {
+      document.getElementById('log').textContent += msg + '\n';
+    }
+
+    function onMindARLoad() {
+      // MindAR
+      const mindarOk = !!(window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.MindARThree);
+      document.getElementById('mindar-status').textContent = mindarOk ? '✅ OK' : '❌ 없음';
+      document.getElementById('mindar-status').className = mindarOk ? 'ok' : 'fail';
+      log('MINDAR: ' + JSON.stringify(Object.keys(window.MINDAR || {})));
+
+      // THREE
+      const threeOk = !!window.THREE;
+      document.getElementById('three-status').textContent = threeOk ? '✅ OK' : '❌ 없음';
+      document.getElementById('three-status').className = threeOk ? 'ok' : 'fail';
+      if (window.THREE) log('THREE r' + (THREE.REVISION || '?'));
+
+      // GLTFLoader
+      const gltfOk = !!(window.THREE && window.THREE.GLTFLoader);
+      document.getElementById('gltf-status').textContent = gltfOk ? '✅ OK' : '❌ 없음 (별도 import 필요)';
+      document.getElementById('gltf-status').className = gltfOk ? 'ok' : 'fail';
+
+      // Camera API
+      const camOk = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+      document.getElementById('camera-status').textContent = camOk ? '✅ OK' : '❌ 없음';
+      document.getElementById('camera-status').className = camOk ? 'ok' : 'fail';
+    }
+
+    function onMindARFail() {
+      document.getElementById('mindar-status').textContent = '❌ 로드 실패';
+      document.getElementById('mindar-status').className = 'fail';
+      log('MindAR CDN 로드 실패');
+    }
+
+    async function testCamera() {
+      const result = document.getElementById('camera-result');
+      result.style.color = 'rgba(255,255,255,0.6)';
+      result.textContent = '권한 요청 중...';
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        stream.getTracks().forEach(t => t.stop());
+        result.style.color = '#4ade80';
+        result.textContent = '✅ 카메라 권한 OK!';
+        log('카메라 권한 허용됨');
+      } catch(e) {
+        result.style.color = '#f87171';
+        result.textContent = '❌ 실패: ' + e.name + ' - ' + e.message;
+        log('카메라 에러: ' + e.name);
+      }
+    }
+  </script>
+</body>
+</html>
