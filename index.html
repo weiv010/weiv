@@ -103,6 +103,48 @@
 
     #bw-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 8; opacity: 0; transition: opacity 0.3s; }
     #bw-overlay.active { opacity: 1; background: rgba(128,128,128,1); mix-blend-mode: color; }
+
+    /* 클린뷰 캡처 레이어 (UI가 숨겨진 상태에서만 표시) */
+    #capture-layer { position: fixed; inset: 0; z-index: 11; pointer-events: none; display: none; }
+    #capture-layer.show { display: block; }
+    #capture-btn {
+      position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 24px) + 34px);
+      transform: translateX(-50%); width: 74px; height: 74px; border-radius: 50%;
+      background: transparent; border: none; padding: 0; cursor: pointer; pointer-events: auto;
+    }
+    #capture-btn::before { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 4px solid rgba(255,255,255,0.9); }
+    #capture-btn::after { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: #fff; transition: transform 0.1s; }
+    #capture-btn:active::after { transform: scale(0.86); }
+    #exit-clean {
+      position: absolute; top: calc(env(safe-area-inset-top, 20px) + 18px); right: 18px;
+      width: 40px; height: 40px; border-radius: 50%; pointer-events: auto; cursor: pointer;
+      background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border: 1.5px solid rgba(255,255,255,0.3); color: #fff; font-size: 20px; font-weight: 500;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #shot-count {
+      position: absolute; top: calc(env(safe-area-inset-top, 20px) + 22px); left: 18px;
+      padding: 7px 14px; border-radius: 999px; background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #fff;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.04em; pointer-events: none;
+      display: flex; align-items: center; gap: 6px;
+    }
+    #shot-count svg { width: 15px; height: 15px; }
+
+    /* 셔터 플래시 */
+    #flash { position: fixed; inset: 0; background: #fff; opacity: 0; z-index: 40; pointer-events: none; }
+    #flash.fire { animation: flash 0.4s ease; }
+    @keyframes flash { 0% { opacity: 0; } 12% { opacity: 0.9; } 100% { opacity: 0; } }
+
+    /* 캡처 미리보기 오버레이 */
+    #preview { position: fixed; inset: 0; z-index: 50; background: rgba(6,10,20,0.94); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: calc(env(safe-area-inset-top, 20px) + 20px) 20px calc(env(safe-area-inset-bottom, 24px) + 24px); }
+    #preview.show { display: flex; }
+    #preview-title { font-size: 14px; color: rgba(255,255,255,0.55); letter-spacing: 0.04em; text-align: center; }
+    #preview-img { max-width: 100%; max-height: 62vh; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+    #preview-actions { display: flex; gap: 14px; }
+    .pv-btn { padding: 14px 30px; border-radius: 999px; font-size: 15px; font-weight: 700; border: none; cursor: pointer; -webkit-appearance: none; }
+    .pv-primary { background: var(--blue); color: #fff; box-shadow: 0 4px 18px rgba(26,95,212,0.5); }
+    .pv-ghost { background: rgba(255,255,255,0.14); color: #fff; border: 1.5px solid rgba(255,255,255,0.25); }
   </style>
 </head>
 <body>
@@ -146,14 +188,13 @@
       <input type="range" id="light-slider" min="0" max="100" value="60" />
     </div>
     <div id="aux-row">
-      <button class="aux-btn" id="cleanview-btn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
-          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-          <line x1="1" y1="1" x2="23" y2="23"/>
+      <button class="aux-btn" id="cleanview-btn" title="클린뷰 캡처">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
         </svg>
       </button>
-      <button class="aux-btn" id="bw-btn">
+      <button class="aux-btn" id="bw-btn" title="흑백(소묘)">
         <svg viewBox="0 0 24 24" stroke="white" stroke-width="2">
           <circle cx="12" cy="12" r="9" fill="none"/>
           <path d="M12 3a9 9 0 0 1 0 18z" fill="white" stroke="none"/>
@@ -182,32 +223,84 @@
   </div>
 </div>
 
+<!-- 클린뷰: UI를 숨기고 3D만 보이는 상태 + 셔터 -->
+<div id="capture-layer">
+  <div id="shot-count">
+    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+      <circle cx="12" cy="13" r="4"/>
+    </svg>
+    <span id="shot-num">0</span> / 3
+  </div>
+  <button id="exit-clean" aria-label="클린뷰 종료">✕</button>
+  <button id="capture-btn" aria-label="사진 촬영"></button>
+</div>
+
+<div id="flash"></div>
+
+<!-- 촬영 결과 미리보기 -->
+<div id="preview">
+  <div id="preview-title">이미지를 길게 눌러 저장하거나, 공유 버튼을 누르세요</div>
+  <img id="preview-img" alt="촬영 결과" />
+  <div id="preview-actions">
+    <button class="pv-btn pv-primary" id="share-btn">저장 / 공유</button>
+    <button class="pv-btn pv-ghost" id="close-preview">닫기</button>
+  </div>
+</div>
+
 <script type="module">
   import * as THREE from 'three';
   import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
   import { MindARThree } from 'mindar-image-three';
 
+  /* ── 4-1-5. URL 기반 콘텐츠 분기 ──────────────────────────────
+     접속 URL에 따라 로드할 GLB 세트를 결정한다.
+     - ?set=키  또는  경로 마지막 세그먼트(weiv.kr/april-xK92mP)로 판별
+     - 매월 신규 QR 배포 시, 아래 CONTENT_SETS에 { 랜덤키: { default, shape } } 만 추가하면 됨
+     - 정의되지 않은 키는 기본 세트로 폴백 (URL 유추 방지 + 안전) */
+  const CONTENT_SETS = {
+    basic: {
+      label: '기본',
+      default: './elephant-default.glb',
+      shape:   './elephant_shape.glb',
+    },
+    // 예시) 'april-xk92mp': { label:'4월', default:'./umbrella-flower.glb', shape:'./umbrella-flower_shape.glb' },
+  };
+  const DEFAULT_SET = 'basic';
+
+  function resolveSet() {
+    const params = new URLSearchParams(location.search);
+    let key = params.get('set');
+    if (!key) {
+      const seg = location.pathname.split('/').filter(Boolean).pop() || '';
+      if (seg && !/\.[a-z0-9]+$/i.test(seg)) key = seg; // 파일명(.html 등)은 제외
+    }
+    key = (key || DEFAULT_SET).toLowerCase();
+    return CONTENT_SETS[key] || CONTENT_SETS[DEFAULT_SET];
+  }
+  const contentSet = resolveSet();
+
+  /* ── 상태 ──────────────────────────────────────────────── */
   let isShapeMode = false, isCleanView = false, isBW = false;
   let modelDefault = null, modelShape = null, targetFound = false;
-  let started = false;
+  let started = false, shotCount = 0;
   let ambientLight = null, dirLight = null;
+  let mindarThree = null, renderer = null, scene = null, camera = null;
 
-  const splashEl   = document.getElementById('splash');
-  const barWrap    = document.getElementById('bar-wrap');
-  const loadingBar = document.getElementById('loading-bar');
-  const loadingTxt = document.getElementById('loading-text');
-  const startBtn   = document.getElementById('start-btn');
-  const errorBox   = document.getElementById('error-box');
-  const errorMsg   = document.getElementById('error-msg');
-  const retryBtn   = document.getElementById('retry-btn');
-  const hintEl     = document.getElementById('hint');
-  const uiEl       = document.getElementById('ui');
+  const $ = (id) => document.getElementById(id);
+  const splashEl   = $('splash');
+  const barWrap    = $('bar-wrap');
+  const loadingBar = $('loading-bar');
+  const loadingTxt = $('loading-text');
+  const startBtn   = $('start-btn');
+  const errorBox   = $('error-box');
+  const hintEl     = $('hint');
+  const uiEl       = $('ui');
+  const captureLayer = $('capture-layer');
+  const previewEl  = $('preview');
+  const previewImg = $('preview-img');
 
-  function setProgress(pct, text) {
-    loadingBar.style.width = pct + '%';
-    loadingTxt.textContent = text;
-  }
-
+  function setProgress(pct, text) { loadingBar.style.width = pct + '%'; loadingTxt.textContent = text; }
   function showProgress() {
     startBtn.style.display = 'none';
     document.querySelector('.splash-sub').style.display = 'none';
@@ -215,37 +308,28 @@
     barWrap.style.display = 'block';
     loadingTxt.style.display = 'block';
   }
-
   function showError(title, msg) {
     barWrap.style.display = 'none';
     loadingTxt.style.display = 'none';
-    document.getElementById('error-title').textContent = title;
-    errorMsg.textContent = msg;
+    $('error-title').textContent = title;
+    $('error-msg').textContent = msg;
     errorBox.classList.add('show');
   }
 
-  // iOS Safari: 카메라 권한은 반드시 (1) HTTPS 컨텍스트에서 (2) 탭 제스처 안에서 요청되어야 함.
-  // 그래서 무거운 모델을 로딩하기 전에 권한부터 즉시 요청해 팝업이 확실히 뜨게 한다.
+  // iOS Safari: 카메라 권한은 (1) HTTPS 컨텍스트에서 (2) 탭 제스처 안에서 요청되어야 함.
+  // 무거운 모델을 로딩하기 전에 권한부터 즉시 요청해 팝업이 확실히 뜨게 한다.
   async function requestCameraPermission() {
-    if (!window.isSecureContext) {
-      throw { _kind: 'insecure' };
-    }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw { _kind: 'unsupported' };
-    }
+    if (!window.isSecureContext) throw { _kind: 'insecure' };
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw { _kind: 'unsupported' };
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
     } catch (e) {
-      // 일부 기기는 environment 제약에서 실패 → 제약 없이 재시도
       if (e && (e.name === 'OverconstrainedError' || e.name === 'NotFoundError')) {
         stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      } else {
-        throw e;
-      }
+      } else { throw e; }
     }
-    // 권한만 확보하고 트랙은 정지 (MindAR가 자체 스트림을 다시 연다 — 이미 허용됐으므로 재요청 없음)
-    stream.getTracks().forEach(t => t.stop());
+    stream.getTracks().forEach(t => t.stop()); // 권한만 확보, MindAR가 자체 스트림을 다시 연다
   }
 
   function loadGLB(src) {
@@ -292,14 +376,11 @@
 
     // 2) AR 엔진 초기화
     setProgress(35, 'AR 엔진 초기화 중...');
-    let mindarThree, renderer, scene, camera;
     try {
       mindarThree = new MindARThree({
-        container: document.getElementById('ar-container'),
+        container: $('ar-container'),
         imageTargetSrc: './targets.mind',
-        uiLoading: 'no',
-        uiScanning: 'no',
-        uiError: 'no',
+        uiLoading: 'no', uiScanning: 'no', uiError: 'no',
       });
       ({ renderer, scene, camera } = mindarThree);
     } catch (e) {
@@ -314,12 +395,12 @@
     dirLight.position.set(0, 5, 5);
     scene.add(dirLight);
 
-    // 3) 모델 로딩
+    // 3) 모델 로딩 (URL에 따라 결정된 세트)
     try {
       setProgress(55, '기본 모델 로딩 중...');
-      modelDefault = await loadGLB('./elephant-default.glb');
+      modelDefault = await loadGLB(contentSet.default);
       setProgress(75, '도형 모델 로딩 중...');
-      modelShape = await loadGLB('./elephant_shape.glb');
+      modelShape = await loadGLB(contentSet.shape);
     } catch (e) {
       started = false;
       showError('3D 모델 로드 실패', '모델 파일을 불러오지 못했어요.\n다시 시도해 주세요.');
@@ -332,16 +413,10 @@
     modelDefault.visible = true;
     modelShape.visible = false;
 
-    anchor.onTargetFound = () => {
-      targetFound = true;
-      hintEl.classList.add('hidden');
-    };
-    anchor.onTargetLost = () => {
-      targetFound = false;
-      if (!isCleanView) hintEl.classList.remove('hidden');
-    };
+    anchor.onTargetFound = () => { targetFound = true; hintEl.classList.add('hidden'); };
+    anchor.onTargetLost = () => { targetFound = false; if (!isCleanView) hintEl.classList.remove('hidden'); };
 
-    // 4) AR 시작 (권한은 이미 확보됨)
+    // 4) AR 시작 (권한 이미 확보됨)
     setProgress(92, 'AR 시작 중...');
     try {
       await mindarThree.start();
@@ -356,20 +431,14 @@
     setProgress(100, '완료!');
     setTimeout(() => {
       splashEl.classList.add('hidden');
-      setTimeout(() => {
-        splashEl.style.display = 'none';
-        hintEl.classList.remove('hidden');
-      }, 500);
+      setTimeout(() => { splashEl.style.display = 'none'; hintEl.classList.remove('hidden'); }, 500);
     }, 300);
 
-    renderer.setAnimationLoop(() => {
-      renderer.render(scene, camera);
-    });
+    renderer.setAnimationLoop(() => { renderer.render(scene, camera); });
   }
 
   startBtn.addEventListener('click', start);
-  retryBtn.addEventListener('click', () => {
-    // 초기 상태로 되돌린 뒤 재시작
+  $('retry-btn').addEventListener('click', () => {
     errorBox.classList.remove('show');
     startBtn.style.display = '';
     document.querySelector('.splash-sub').style.display = '';
@@ -377,41 +446,115 @@
     start();
   });
 
-  // 조명 슬라이더
-  document.getElementById('light-slider').addEventListener('input', (e) => {
+  // 조명 밝기 슬라이더
+  $('light-slider').addEventListener('input', (e) => {
     if (!ambientLight || !dirLight) return;
     const v = e.target.value / 100;
     ambientLight.intensity = v * 0.8;
     dirLight.intensity = v * 1.2;
   });
 
-  // 모드 토글 (기본 / 도형)
-  document.getElementById('mode-toggle').addEventListener('click', () => {
+  // 일반 ↔ 도형 모드
+  $('mode-toggle').addEventListener('click', () => {
     isShapeMode = !isShapeMode;
-    document.getElementById('mode-toggle').classList.toggle('shape-active', isShapeMode);
-    if (modelDefault && modelShape) {
-      modelDefault.visible = !isShapeMode;
-      modelShape.visible = isShapeMode;
+    $('mode-toggle').classList.toggle('shape-active', isShapeMode);
+    if (modelDefault && modelShape) { modelDefault.visible = !isShapeMode; modelShape.visible = isShapeMode; }
+  });
+
+  /* ── 4-1-6. 클린뷰 캡처 ──────────────────────────────────── */
+  function enterCleanView() {
+    isCleanView = true;
+    uiEl.classList.add('hidden');
+    hintEl.classList.add('hidden');
+    captureLayer.classList.add('show');
+  }
+  function exitCleanView() {
+    isCleanView = false;
+    uiEl.classList.remove('hidden');
+    captureLayer.classList.remove('show');
+    if (!targetFound) hintEl.classList.remove('hidden');
+  }
+  $('cleanview-btn').addEventListener('click', enterCleanView);
+  $('exit-clean').addEventListener('click', exitCleanView);
+
+  function drawCover(ctx, media, W, H) {
+    const mw = media.videoWidth || media.width, mh = media.videoHeight || media.height;
+    if (!mw || !mh) return;
+    const s = Math.max(W / mw, H / mh);
+    const dw = mw * s, dh = mh * s;
+    ctx.drawImage(media, (W - dw) / 2, (H - dh) / 2, dw, dh);
+  }
+
+  // 카메라 영상 + 3D 모델(+흑백)을 하나의 캔버스로 합성
+  function composeFrame() {
+    const gl = renderer.domElement;
+    const W = gl.width, H = gl.height;
+    const out = document.createElement('canvas');
+    out.width = W; out.height = H;
+    const ctx = out.getContext('2d');
+
+    const video = document.querySelector('#ar-container video');
+    if (video && video.videoWidth) drawCover(ctx, video, W, H);
+
+    // WebGL 캔버스는 버퍼가 present 직후 비워질 수 있어, 읽기 직전에 동기 렌더 후 즉시 draw
+    renderer.render(scene, camera);
+    ctx.drawImage(gl, 0, 0, W, H);
+
+    if (isBW) {
+      const bw = document.createElement('canvas');
+      bw.width = W; bw.height = H;
+      const bctx = bw.getContext('2d');
+      bctx.filter = 'grayscale(1)';
+      bctx.drawImage(out, 0, 0);
+      return bw;
     }
+    return out;
+  }
+
+  let lastBlob = null;
+  $('capture-btn').addEventListener('click', () => {
+    if (!renderer) return;
+    const canvas = composeFrame();
+    $('flash').classList.remove('fire'); void $('flash').offsetWidth; $('flash').classList.add('fire');
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      lastBlob = blob;
+      previewImg.src = URL.createObjectURL(blob);
+      shotCount += 1;
+      $('shot-num').textContent = Math.min(shotCount, 3);
+      previewEl.classList.add('show');
+    }, 'image/png');
   });
 
-  // 클린뷰 (UI 숨김)
-  document.getElementById('cleanview-btn').addEventListener('click', () => {
-    isCleanView = !isCleanView;
-    uiEl.classList.toggle('hidden', isCleanView);
-    if (isCleanView) hintEl.classList.add('hidden');
-    else if (!targetFound) hintEl.classList.remove('hidden');
+  $('close-preview').addEventListener('click', () => {
+    previewEl.classList.remove('show');
+    if (previewImg.src) { URL.revokeObjectURL(previewImg.src); previewImg.removeAttribute('src'); }
   });
 
-  // 흑백 모드
-  document.getElementById('bw-btn').addEventListener('click', () => {
+  // 저장/공유: iOS Safari는 파일 공유(Web Share Level 2) 지원 → 사진 앱에 저장 가능.
+  // 미지원 시엔 이미지를 길게 눌러 저장하는 안내로 대체.
+  $('share-btn').addEventListener('click', async () => {
+    if (!lastBlob) return;
+    const file = new File([lastBlob], `weiv-${Date.now()}.png`, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'WEIV' }); return; }
+      catch (e) { /* 사용자가 취소 → 아래 폴백 */ }
+    }
+    // 폴백: 새 탭으로 이미지 열기 (길게 눌러 저장)
+    const url = URL.createObjectURL(lastBlob);
+    window.open(url, '_blank');
+  });
+
+  // 흑백(소묘) 필터
+  $('bw-btn').addEventListener('click', () => {
     isBW = !isBW;
-    document.getElementById('bw-overlay').classList.toggle('active', isBW);
-    document.getElementById('bw-btn').classList.toggle('active', isBW);
+    $('bw-overlay').classList.toggle('active', isBW);
+    $('bw-btn').classList.toggle('active', isBW);
   });
 
-  document.getElementById('info-btn').addEventListener('click', () => {
-    alert('WEIV - AR 정물 미술 교구 라이브러리\n토큰을 카메라에 비춰 3D 정물을 관찰하세요.');
+  $('info-btn').addEventListener('click', () => {
+    alert('WEIV - AR 정물 미술 교구 라이브러리\n토큰을 카메라에 비춰 3D 정물을 관찰하세요.\n\n· 카메라 버튼: 클린뷰에서 사진 촬영\n· 큐브 토글: 일반 ↔ 도형(구조) 모드\n· 반달 버튼: 흑백(소묘) 필터');
   });
 </script>
 </body>
