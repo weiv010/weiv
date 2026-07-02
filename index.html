@@ -2,9 +2,21 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>WEIV</title>
-  <script src="./mindar-image-three.prod.js"></script>
+
+  <!-- three, GLTFLoader, MindAR를 ES 모듈로 로드 (import map).
+       로컬 mindar 번들은 하위 청크 파일이 없어 동작하지 않으므로 공식 CDN 사용. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/jsm/",
+      "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+    }
+  }
+  </script>
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     :root { --blue: #1A5FD4; --white: #ffffff; }
@@ -17,7 +29,7 @@
     #splash {
       position: fixed; inset: 0; background: #0a0f1e;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 32px; z-index: 100; transition: opacity 0.5s ease;
+      gap: 32px; z-index: 100; transition: opacity 0.5s ease; padding: 24px;
     }
     #splash.hidden { opacity: 0; pointer-events: none; }
 
@@ -37,19 +49,30 @@
 
     .loading-bar-wrap { width: 160px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.15); overflow: hidden; display: none; }
     .loading-bar { height: 100%; background: var(--blue); border-radius: 2px; width: 0%; transition: width 0.4s ease; }
-    #loading-text { font-size: 12px; color: rgba(255,255,255,0.4); letter-spacing: 0.08em; display: none; }
+    #loading-text { font-size: 12px; color: rgba(255,255,255,0.4); letter-spacing: 0.08em; display: none; white-space: pre-line; text-align: center; line-height: 1.7; }
+
+    /* 에러 안내 */
+    #error-box { display: none; flex-direction: column; align-items: center; gap: 18px; max-width: 320px; }
+    #error-box.show { display: flex; }
+    #error-title { font-size: 15px; font-weight: 700; color: #f87171; }
+    #error-msg { font-size: 13px; color: rgba(255,255,255,0.6); text-align: center; line-height: 1.8; white-space: pre-line; }
+    #retry-btn {
+      padding: 13px 40px; border-radius: 999px; background: rgba(255,255,255,0.14);
+      color: #fff; font-size: 15px; font-weight: 700; border: 1.5px solid rgba(255,255,255,0.25);
+      cursor: pointer; -webkit-appearance: none;
+    }
 
     /* UI */
     #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; transition: opacity 0.4s; }
     #ui.hidden { opacity: 0; pointer-events: none; }
 
-    #header { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 52px 20px 16px; background: linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%); pointer-events: auto; }
+    #header { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 52px 20px 16px; padding-top: calc(env(safe-area-inset-top, 20px) + 20px); background: linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%); pointer-events: auto; }
     #logo-icon { width: 36px; height: 36px; border-radius: 10px; overflow: hidden; background: var(--blue); display: flex; align-items: center; justify-content: center; }
     #logo-icon img { width: 26px; height: 26px; object-fit: contain; }
     #logo-text { font-size: 22px; font-weight: 800; letter-spacing: 0.12em; color: #fff; }
     #info-btn { width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.6); color: #fff; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; background: transparent; pointer-events: auto; }
 
-    #bottom-controls { position: absolute; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px 20px 44px; background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%); pointer-events: auto; }
+    #bottom-controls { position: absolute; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px 20px 44px; padding-bottom: calc(env(safe-area-inset-bottom, 24px) + 24px); background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%); pointer-events: auto; }
 
     #light-row { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 280px; }
     .sun-icon { width: 18px; height: 18px; opacity: 0.7; flex-shrink: 0; }
@@ -90,6 +113,12 @@
   <div class="splash-sub">버튼을 누르면 카메라 접근 권한을 요청합니다</div>
   <div class="loading-bar-wrap" id="bar-wrap"><div class="loading-bar" id="loading-bar"></div></div>
   <div id="loading-text">로딩 중...</div>
+
+  <div id="error-box">
+    <div id="error-title">카메라를 시작할 수 없어요</div>
+    <div id="error-msg"></div>
+    <button id="retry-btn">다시 시도</button>
+  </div>
 </div>
 
 <div id="bw-overlay"></div>
@@ -153,18 +182,24 @@
   </div>
 </div>
 
-<script>
-  const { MindARThree } = window.MINDAR.IMAGE;
-  const THREE = window.THREE;
+<script type="module">
+  import * as THREE from 'three';
+  import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+  import { MindARThree } from 'mindar-image-three';
 
   let isShapeMode = false, isCleanView = false, isBW = false;
   let modelDefault = null, modelShape = null, targetFound = false;
+  let started = false;
+  let ambientLight = null, dirLight = null;
 
   const splashEl   = document.getElementById('splash');
   const barWrap    = document.getElementById('bar-wrap');
   const loadingBar = document.getElementById('loading-bar');
   const loadingTxt = document.getElementById('loading-text');
   const startBtn   = document.getElementById('start-btn');
+  const errorBox   = document.getElementById('error-box');
+  const errorMsg   = document.getElementById('error-msg');
+  const retryBtn   = document.getElementById('retry-btn');
   const hintEl     = document.getElementById('hint');
   const uiEl       = document.getElementById('ui');
 
@@ -175,58 +210,121 @@
 
   function showProgress() {
     startBtn.style.display = 'none';
+    document.querySelector('.splash-sub').style.display = 'none';
+    errorBox.classList.remove('show');
     barWrap.style.display = 'block';
     loadingTxt.style.display = 'block';
   }
 
-  startBtn.addEventListener('click', async () => {
-    showProgress();
-    setProgress(20, 'AR 엔진 초기화 중...');
+  function showError(title, msg) {
+    barWrap.style.display = 'none';
+    loadingTxt.style.display = 'none';
+    document.getElementById('error-title').textContent = title;
+    errorMsg.textContent = msg;
+    errorBox.classList.add('show');
+  }
 
-    const mindarThree = new MindARThree({
-      container: document.getElementById('ar-container'),
-      imageTargetSrc: './targets.mind',
-      uiLoading: 'no',
-      uiScanning: 'no',
-      uiError: 'no',
+  // iOS Safari: 카메라 권한은 반드시 (1) HTTPS 컨텍스트에서 (2) 탭 제스처 안에서 요청되어야 함.
+  // 그래서 무거운 모델을 로딩하기 전에 권한부터 즉시 요청해 팝업이 확실히 뜨게 한다.
+  async function requestCameraPermission() {
+    if (!window.isSecureContext) {
+      throw { _kind: 'insecure' };
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw { _kind: 'unsupported' };
+    }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    } catch (e) {
+      // 일부 기기는 environment 제약에서 실패 → 제약 없이 재시도
+      if (e && (e.name === 'OverconstrainedError' || e.name === 'NotFoundError')) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      } else {
+        throw e;
+      }
+    }
+    // 권한만 확보하고 트랙은 정지 (MindAR가 자체 스트림을 다시 연다 — 이미 허용됐으므로 재요청 없음)
+    stream.getTracks().forEach(t => t.stop());
+  }
+
+  function loadGLB(src) {
+    return new Promise((resolve, reject) => {
+      const loader = new GLTFLoader();
+      loader.load(src, (gltf) => {
+        const model = gltf.scene;
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = 1.0 / maxDim;
+        model.scale.setScalar(scale);
+        const center = box.getCenter(new THREE.Vector3());
+        model.position.sub(center.multiplyScalar(scale));
+        resolve(model);
+      }, undefined, reject);
     });
+  }
 
-    const { renderer, scene, camera } = mindarThree;
+  async function start() {
+    if (started) return;
+    started = true;
+    showProgress();
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // 1) 카메라 권한 먼저 (제스처 컨텍스트 유지)
+    setProgress(15, '카메라 권한을 요청합니다...\n(팝업에서 "허용"을 눌러주세요)');
+    try {
+      await requestCameraPermission();
+    } catch (e) {
+      started = false;
+      if (e && e._kind === 'insecure') {
+        showError('보안 연결이 필요해요', 'HTTPS 주소에서만 카메라를 쓸 수 있어요.\nGitHub Pages(https://) 주소로 접속해 주세요.');
+      } else if (e && e._kind === 'unsupported') {
+        showError('카메라를 지원하지 않아요', '사파리 최신 버전에서 다시 시도해 주세요.');
+      } else if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) {
+        showError('카메라 권한이 거부됐어요', '설정 › Safari › 카메라 › "허용"으로 바꾼 뒤,\n페이지를 새로고침하고 다시 시도해 주세요.\n(또는 주소창 왼쪽 "ㄱㄱ" › 웹사이트 설정)');
+      } else if (e && e.name === 'NotReadableError') {
+        showError('카메라를 사용할 수 없어요', '다른 앱이 카메라를 쓰고 있는지 확인 후\n다시 시도해 주세요.');
+      } else {
+        showError('카메라 오류', (e && (e.name + (e.message ? ': ' + e.message : ''))) || '알 수 없는 오류가 발생했어요.');
+      }
+      return;
+    }
+
+    // 2) AR 엔진 초기화
+    setProgress(35, 'AR 엔진 초기화 중...');
+    let mindarThree, renderer, scene, camera;
+    try {
+      mindarThree = new MindARThree({
+        container: document.getElementById('ar-container'),
+        imageTargetSrc: './targets.mind',
+        uiLoading: 'no',
+        uiScanning: 'no',
+        uiError: 'no',
+      });
+      ({ renderer, scene, camera } = mindarThree);
+    } catch (e) {
+      started = false;
+      showError('AR 엔진 로드 실패', '네트워크 연결을 확인하고 다시 시도해 주세요.\n(' + (e && e.message ? e.message : e) + ')');
+      return;
+    }
+
+    ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(0, 5, 5);
     scene.add(dirLight);
 
-    document.getElementById('light-slider').addEventListener('input', (e) => {
-      const v = e.target.value / 100;
-      ambientLight.intensity = v * 0.8;
-      dirLight.intensity = v * 1.2;
-    });
-
-    function loadGLB(src) {
-      return new Promise((resolve, reject) => {
-        const loader = new THREE.GLTFLoader();
-        loader.load(src, (gltf) => {
-          const model = gltf.scene;
-          const box = new THREE.Box3().setFromObject(model);
-          const size = box.getSize(new THREE.Vector3());
-          const maxDim = Math.max(size.x, size.y, size.z);
-          const scale = 1.0 / maxDim;
-          model.scale.setScalar(scale);
-          const center = box.getCenter(new THREE.Vector3());
-          model.position.sub(center.multiplyScalar(scale));
-          resolve(model);
-        }, undefined, reject);
-      });
+    // 3) 모델 로딩
+    try {
+      setProgress(55, '기본 모델 로딩 중...');
+      modelDefault = await loadGLB('./elephant-default.glb');
+      setProgress(75, '도형 모델 로딩 중...');
+      modelShape = await loadGLB('./elephant_shape.glb');
+    } catch (e) {
+      started = false;
+      showError('3D 모델 로드 실패', '모델 파일을 불러오지 못했어요.\n다시 시도해 주세요.');
+      return;
     }
-
-    setProgress(45, '기본 모델 로딩 중...');
-    modelDefault = await loadGLB('./elephant-default.glb');
-
-    setProgress(70, '도형 모델 로딩 중...');
-    modelShape = await loadGLB('./elephant_shape.glb');
 
     const anchor = mindarThree.addAnchor(0);
     anchor.group.add(modelDefault);
@@ -243,10 +341,17 @@
       if (!isCleanView) hintEl.classList.remove('hidden');
     };
 
-    setProgress(90, 'AR 시작 중...\n(카메라 권한을 허용해주세요)');
-
-    // MindAR.start()가 내부적으로 카메라 권한 요청함
-    await mindarThree.start();
+    // 4) AR 시작 (권한은 이미 확보됨)
+    setProgress(92, 'AR 시작 중...');
+    try {
+      await mindarThree.start();
+    } catch (e) {
+      started = false;
+      showError('AR 시작 실패', (e && e.name === 'NotAllowedError')
+        ? '카메라 권한이 거부됐어요. 설정에서 허용 후 다시 시도해 주세요.'
+        : '다시 시도해 주세요.\n(' + (e && e.message ? e.message : e) + ')');
+      return;
+    }
 
     setProgress(100, '완료!');
     setTimeout(() => {
@@ -260,8 +365,27 @@
     renderer.setAnimationLoop(() => {
       renderer.render(scene, camera);
     });
+  }
+
+  startBtn.addEventListener('click', start);
+  retryBtn.addEventListener('click', () => {
+    // 초기 상태로 되돌린 뒤 재시작
+    errorBox.classList.remove('show');
+    startBtn.style.display = '';
+    document.querySelector('.splash-sub').style.display = '';
+    setProgress(0, '로딩 중...');
+    start();
   });
 
+  // 조명 슬라이더
+  document.getElementById('light-slider').addEventListener('input', (e) => {
+    if (!ambientLight || !dirLight) return;
+    const v = e.target.value / 100;
+    ambientLight.intensity = v * 0.8;
+    dirLight.intensity = v * 1.2;
+  });
+
+  // 모드 토글 (기본 / 도형)
   document.getElementById('mode-toggle').addEventListener('click', () => {
     isShapeMode = !isShapeMode;
     document.getElementById('mode-toggle').classList.toggle('shape-active', isShapeMode);
@@ -271,6 +395,7 @@
     }
   });
 
+  // 클린뷰 (UI 숨김)
   document.getElementById('cleanview-btn').addEventListener('click', () => {
     isCleanView = !isCleanView;
     uiEl.classList.toggle('hidden', isCleanView);
@@ -278,6 +403,7 @@
     else if (!targetFound) hintEl.classList.remove('hidden');
   });
 
+  // 흑백 모드
   document.getElementById('bw-btn').addEventListener('click', () => {
     isBW = !isBW;
     document.getElementById('bw-overlay').classList.toggle('active', isBW);

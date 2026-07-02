@@ -3,63 +3,77 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WEIV 테스트</title>
+  <title>WEIV 진단</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/jsm/",
+      "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+    }
+  }
+  </script>
   <style>
-    body { background: #0a0f1e; color: white; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 16px; margin: 0; }
+    body { background: #0a0f1e; color: white; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 14px; margin: 0; padding: 24px; }
     .status { font-size: 14px; color: rgba(255,255,255,0.5); }
     .ok { color: #4ade80; font-weight: bold; }
     .fail { color: #f87171; font-weight: bold; }
-    button { padding: 14px 36px; border-radius: 999px; background: #1A5FD4; color: white; font-size: 16px; font-weight: 700; border: none; cursor: pointer; margin-top: 8px; }
-    #log { font-size: 12px; color: rgba(255,255,255,0.4); max-width: 320px; text-align: center; line-height: 1.8; }
+    button { padding: 14px 36px; border-radius: 999px; background: #1A5FD4; color: white; font-size: 16px; font-weight: 700; border: none; cursor: pointer; margin-top: 8px; -webkit-appearance: none; }
+    #log { font-size: 12px; color: rgba(255,255,255,0.4); max-width: 340px; text-align: center; line-height: 1.9; white-space: pre-line; }
   </style>
 </head>
 <body>
-  <div style="font-size:28px;font-weight:900;letter-spacing:0.15em;">WEIV 테스트</div>
-  <div class="status">MindAR 로드: <span id="mindar-status">확인 중...</span></div>
-  <div class="status">THREE.js 로드: <span id="three-status">확인 중...</span></div>
+  <div style="font-size:28px;font-weight:900;letter-spacing:0.15em;">WEIV 진단</div>
+  <div class="status">보안 컨텍스트(HTTPS): <span id="secure-status">확인 중...</span></div>
+  <div class="status">카메라 API: <span id="camapi-status">확인 중...</span></div>
+  <div class="status">THREE.js: <span id="three-status">확인 중...</span></div>
   <div class="status">GLTFLoader: <span id="gltf-status">확인 중...</span></div>
-  <div class="status">카메라 API: <span id="camera-status">확인 중...</span></div>
-  <button onclick="testCamera()">카메라 권한 테스트</button>
+  <div class="status">MindAR: <span id="mindar-status">확인 중...</span></div>
+  <button id="cam-btn">카메라 권한 테스트</button>
   <div id="camera-result"></div>
   <div id="log"></div>
 
-  <script src="./mindar-image-three.prod.js" onload="onMindARLoad()" onerror="onMindARFail()"></script>
-  <script>
-    function log(msg) { document.getElementById('log').textContent += msg + '\n'; }
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    const log = (m) => { $('log').textContent += m + '\n'; };
 
-    function onMindARLoad() {
-      const mindarOk = !!(window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.MindARThree);
-      document.getElementById('mindar-status').innerHTML = mindarOk ? '<span class="ok">✅ OK</span>' : '<span class="fail">❌ 없음</span>';
-      log('MINDAR keys: ' + JSON.stringify(Object.keys(window.MINDAR || {})));
+    // 보안 컨텍스트 & 카메라 API (모듈 로드와 무관하게 먼저 확인)
+    $('secure-status').innerHTML = window.isSecureContext
+      ? '<span class="ok">✅ OK</span>'
+      : '<span class="fail">❌ HTTPS 아님 (카메라 불가)</span>';
+    const camOk = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    $('camapi-status').innerHTML = camOk ? '<span class="ok">✅ OK</span>' : '<span class="fail">❌ 없음</span>';
 
-      const threeOk = !!window.THREE;
-      document.getElementById('three-status').innerHTML = threeOk ? '<span class="ok">✅ OK (r'+THREE.REVISION+')</span>' : '<span class="fail">❌ 없음</span>';
-
-      const gltfOk = !!(window.THREE && window.THREE.GLTFLoader);
-      document.getElementById('gltf-status').innerHTML = gltfOk ? '<span class="ok">✅ OK</span>' : '<span class="fail">❌ 없음 (별도 필요)</span>';
-
-      const camOk = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-      document.getElementById('camera-status').innerHTML = camOk ? '<span class="ok">✅ OK</span>' : '<span class="fail">❌ 없음</span>';
+    // 모듈 로드 확인
+    try {
+      const THREE = await import('three');
+      $('three-status').innerHTML = '<span class="ok">✅ OK (r' + THREE.REVISION + ')</span>';
+      try {
+        await import('three/addons/loaders/GLTFLoader.js');
+        $('gltf-status').innerHTML = '<span class="ok">✅ OK</span>';
+      } catch (e) { $('gltf-status').innerHTML = '<span class="fail">❌ 실패</span>'; log('GLTF: ' + e); }
+      try {
+        const m = await import('mindar-image-three');
+        $('mindar-status').innerHTML = m.MindARThree ? '<span class="ok">✅ OK</span>' : '<span class="fail">❌ MindARThree 없음</span>';
+      } catch (e) { $('mindar-status').innerHTML = '<span class="fail">❌ 실패</span>'; log('MindAR: ' + e); }
+    } catch (e) {
+      $('three-status').innerHTML = '<span class="fail">❌ 실패</span>';
+      log('THREE: ' + e);
     }
 
-    function onMindARFail() {
-      document.getElementById('mindar-status').innerHTML = '<span class="fail">❌ 로드 실패</span>';
-      log('MindAR 로드 실패');
-    }
-
-    async function testCamera() {
-      const result = document.getElementById('camera-result');
+    $('cam-btn').addEventListener('click', async () => {
+      const result = $('camera-result');
       result.textContent = '권한 요청 중...';
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         stream.getTracks().forEach(t => t.stop());
         result.style.color = '#4ade80';
         result.textContent = '✅ 카메라 권한 OK!';
-      } catch(e) {
+      } catch (e) {
         result.style.color = '#f87171';
         result.textContent = '❌ ' + e.name + ': ' + e.message;
       }
-    }
+    });
   </script>
 </body>
 </html>
