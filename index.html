@@ -433,6 +433,11 @@
         container: $('ar-container'),
         imageTargetSrc: './targets.mind',
         uiLoading: 'no', uiScanning: 'no', uiError: 'no',
+        // 떨림(지터) 완화: One Euro Filter.
+        // filterMinCF를 기본 0.001 → 0.0001로 낮춰 정지 시 흔들림을 줄이고,
+        // filterBeta(=1000)는 유지해 실제로 움직일 때의 반응성은 그대로 둔다.
+        filterMinCF: 0.0001,
+        filterBeta: 1000,
       });
       ({ renderer, scene, camera } = mindarThree);
     } catch (e) {
