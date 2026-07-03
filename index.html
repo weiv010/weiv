@@ -95,11 +95,12 @@
     #mode-toggle.shape-active #icon-default { opacity: 0.45; }
     #mode-toggle.shape-active #icon-shape { opacity: 1; }
 
-    #hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); display: flex; flex-direction: column; align-items: center; gap: 14px; z-index: 9; pointer-events: none; transition: opacity 0.5s; }
+    #hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); display: flex; flex-direction: column; align-items: center; gap: 16px; z-index: 9; pointer-events: none; transition: opacity 0.5s; width: 82%; }
     #hint.hidden { opacity: 0; }
-    .hint-ring { width: 140px; height: 140px; border-radius: 50%; border: 2.5px dashed rgba(255,255,255,0.5); animation: spin 6s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .hint-text { font-size: 14px; color: rgba(255,255,255,0.75); letter-spacing: 0.05em; text-align: center; }
+    .hint-cam { width: 84px; height: 84px; color: rgba(255,255,255,0.92); filter: drop-shadow(0 2px 10px rgba(0,0,0,0.4)); animation: pulse 2.2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 0.9; transform: scale(1); } 50% { opacity: 0.55; transform: scale(0.94); } }
+    .hint-text { font-size: 17px; font-weight: 700; color: rgba(255,255,255,0.95); letter-spacing: 0.02em; text-align: center; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+    .hint-sub { font-size: 12px; color: rgba(255,255,255,0.55); letter-spacing: 0.04em; text-align: center; }
 
     #bw-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 8; opacity: 0; transition: opacity 0.3s; }
     #bw-overlay.active { opacity: 1; background: rgba(128,128,128,1); mix-blend-mode: color; }
@@ -165,8 +166,12 @@
 
 <div id="bw-overlay"></div>
 <div id="hint" class="hidden">
-  <div class="hint-ring"></div>
-  <div class="hint-text">토큰을 카메라에 비춰주세요</div>
+  <svg class="hint-cam" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M9 3L7.5 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.5L15 3H9z"/>
+    <circle cx="12" cy="12.5" r="3.4" fill="#0a0f1e"/>
+  </svg>
+  <div class="hint-text">원하는 조각을 카메라에 보여주세요</div>
+  <div class="hint-sub">* 카메라 접근 허용 시에만 가능 *</div>
 </div>
 <div id="ar-container"></div>
 
@@ -188,10 +193,11 @@
       <input type="range" id="light-slider" min="0" max="100" value="60" />
     </div>
     <div id="aux-row">
-      <button class="aux-btn" id="cleanview-btn" title="클린뷰 캡처">
+      <button class="aux-btn" id="cleanview-btn" title="클린뷰 (UI 숨김 · 캡처)">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-          <circle cx="12" cy="13" r="4"/>
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>
         </svg>
       </button>
       <button class="aux-btn" id="bw-btn" title="흑백(소묘)">
@@ -248,7 +254,46 @@
   </div>
 </div>
 
+<!-- 진단: 모듈/CDN 로딩 실패 시 화면이 조용히 멈추지 않고 원인을 표시 -->
+<script>
+  (function () {
+    function surface(text) {
+      var bw = document.getElementById('bar-wrap');
+      var lt = document.getElementById('loading-text');
+      var eb = document.getElementById('error-box');
+      var et = document.getElementById('error-title');
+      var em = document.getElementById('error-msg');
+      var sb = document.getElementById('start-btn');
+      var ss = document.querySelector('.splash-sub');
+      if (bw) bw.style.display = 'none';
+      if (lt) lt.style.display = 'none';
+      if (sb) sb.style.display = 'none';
+      if (ss) ss.style.display = 'none';
+      if (et) et.textContent = '실행 오류';
+      if (em) em.textContent = text;
+      if (eb) eb.classList.add('show');
+    }
+    window.addEventListener('error', function (e) {
+      if (window.__weivReady) return;
+      var m = (e && (e.message || '')) + (e && e.filename ? '\n(' + e.filename + ')' : '');
+      surface('스크립트를 불러오지 못했어요.\n인터넷 연결, 또는 광고차단·사내망에서 CDN(jsdelivr) 접속이 막혔는지 확인해 주세요.\n\n' + m);
+    }, true);
+    window.addEventListener('unhandledrejection', function (e) {
+      if (window.__weivReady) return;
+      surface('초기화 중 오류가 발생했어요.\n' + ((e && e.reason && (e.reason.message || e.reason)) || ''));
+    });
+    window.addEventListener('DOMContentLoaded', function () {
+      setTimeout(function () {
+        if (!window.__weivReady) {
+          surface('스크립트 로딩이 지연되고 있어요.\n네트워크를 확인하거나 새로고침해 주세요.\n(CDN 접속 차단 가능성)');
+        }
+      }, 8000);
+    });
+  })();
+</script>
+
 <script type="module">
+  window.__weivReady = true; // 모듈 본문이 실행됐다 = three/MindAR import 성공
   import * as THREE from 'three';
   import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
   import { MindARThree } from 'mindar-image-three';
@@ -299,6 +344,13 @@
   const captureLayer = $('capture-layer');
   const previewEl  = $('preview');
   const previewImg = $('preview-img');
+
+  // 모듈이 정상 실행됐으므로, 혹시 워치독이 먼저 띄운 오류 화면을 정상 상태로 복구
+  errorBox.classList.remove('show');
+  startBtn.style.display = '';
+  barWrap.style.display = 'none';
+  loadingTxt.style.display = 'none';
+  document.querySelector('.splash-sub').style.display = '';
 
   function setProgress(pct, text) { loadingBar.style.width = pct + '%'; loadingTxt.textContent = text; }
   function showProgress() {
