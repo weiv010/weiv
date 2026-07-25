@@ -205,18 +205,14 @@
     return new Promise((resolve, reject) => {
       new GLTFLoader().load(src, (gltf) => {
         const model = gltf.scene;
-        // 1) 최대 치수를 1로 정규화
+        // 최대 치수를 1로 정규화하고, 모든 축을 카드 중심에 정렬
         let box = new THREE.Box3().setFromObject(model);
         const size = box.getSize(new THREE.Vector3());
         const s = 1.0 / Math.max(size.x, size.y, size.z);
         model.scale.setScalar(s);
-        // 2) 카드 기준 정렬: X·Y는 카드 중심, Z는 카드 표면 위에 얹기
         model.updateMatrixWorld(true);
         box = new THREE.Box3().setFromObject(model);
-        const c = box.getCenter(new THREE.Vector3());
-        model.position.x -= c.x;
-        model.position.y -= c.y;
-        model.position.z -= box.min.z;   // 모델 밑면을 카드 면(z=0)에 맞춤
+        model.position.sub(box.getCenter(new THREE.Vector3()));  // 카드 중심 정렬
         resolve(model);
       }, undefined, reject);
     });
@@ -293,7 +289,14 @@
     }, 250);
 
     renderer.setAnimationLoop(() => renderer.render(scene, camera));
+
+    // 레이아웃(주소창·Safe Area·스플래시 제거)이 안정된 뒤 정렬을 다시 계산해
+    // 모델이 한쪽으로 밀리는 현상을 방지 (MindAR는 'resize' 이벤트에 반응).
+    forceResize(); setTimeout(forceResize, 300); setTimeout(forceResize, 800); setTimeout(forceResize, 1600);
   }
+
+  function forceResize() { if (mindarThree) window.dispatchEvent(new Event('resize')); }
+  window.addEventListener('orientationchange', () => { setTimeout(forceResize, 350); setTimeout(forceResize, 900); });
 
   startBtn.addEventListener('click', start);
   $('retry-btn').addEventListener('click', () => {
