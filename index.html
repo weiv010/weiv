@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>WEIV</title>
 
-  <!-- three, GLTFLoader, MindAR를 ES 모듈로 로드 (import map).
-       로컬 mindar 번들은 하위 청크 파일이 없어 동작하지 않으므로 공식 CDN 사용. -->
+  <!-- three · GLTFLoader · MindAR (ES module import map, 공식 CDN) -->
   <script type="importmap">
   {
     "imports": {
@@ -19,383 +18,197 @@
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    :root { --blue: #0073ff; --white: #ffffff; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0f1e; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    :root { --blue: #0073ff; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0f1e;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-user-select: none; user-select: none; }
 
-    #ar-container { position: fixed; inset: 0; width: 100%; height: 100%; }
+    #ar-container { position: fixed; inset: 0; }
     #ar-container canvas, #ar-container video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
 
-    /* 시작 화면 */
-    #splash {
-      position: fixed; inset: 0; background: #0a0f1e;
+    /* ── 시작 화면 ───────────────────────────── */
+    #splash { position: fixed; inset: 0; z-index: 100; background: #0a0f1e;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 32px; z-index: 100; transition: opacity 0.5s ease; padding: 24px;
-    }
+      gap: 30px; padding: 32px; transition: opacity 0.5s ease; }
     #splash.hidden { opacity: 0; pointer-events: none; }
-
-    .splash-logo { font-size: 40px; font-weight: 900; letter-spacing: 0.18em; color: #fff; }
+    .splash-logo { font-size: 44px; font-weight: 900; letter-spacing: 0.18em; color: #fff; }
     .splash-logo span { color: var(--blue); }
-    .splash-sub { font-size: 13px; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; text-align: center; line-height: 1.8; }
-
-    #start-btn {
-      padding: 16px 52px; border-radius: 999px;
-      background: var(--blue); color: white;
-      font-size: 17px; font-weight: 700; border: none; cursor: pointer;
-      box-shadow: 0 4px 24px rgba(0,115,255,0.5);
-      letter-spacing: 0.04em;
-      -webkit-appearance: none;
-    }
-    #start-btn:active { opacity: 0.8; transform: scale(0.97); }
-
-    .loading-bar-wrap { width: 160px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.15); overflow: hidden; display: none; }
-    .loading-bar { height: 100%; background: var(--blue); border-radius: 2px; width: 0%; transition: width 0.4s ease; }
-    #loading-text { font-size: 12px; color: rgba(255,255,255,0.4); letter-spacing: 0.08em; display: none; white-space: pre-line; text-align: center; line-height: 1.7; }
-
-    /* 에러 안내 */
-    #error-box { display: none; flex-direction: column; align-items: center; gap: 18px; max-width: 320px; }
+    .splash-title { font-size: 16px; color: rgba(255,255,255,0.6); letter-spacing: 0.04em; }
+    #start-btn { padding: 17px 56px; border-radius: 999px; background: var(--blue); color: #fff;
+      font-size: 17px; font-weight: 700; border: none; cursor: pointer; -webkit-appearance: none;
+      box-shadow: 0 6px 26px rgba(0,115,255,0.5); letter-spacing: 0.04em; }
+    #start-btn:active { transform: scale(0.97); opacity: 0.9; }
+    .bar-wrap { width: 150px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.15); overflow: hidden; display: none; }
+    .bar { height: 100%; width: 0%; background: var(--blue); transition: width 0.4s ease; }
+    #loading-text { display: none; font-size: 12px; color: rgba(255,255,255,0.45); text-align: center; white-space: pre-line; line-height: 1.7; }
+    #error-box { display: none; flex-direction: column; align-items: center; gap: 16px; max-width: 320px; }
     #error-box.show { display: flex; }
     #error-title { font-size: 15px; font-weight: 700; color: #f87171; }
     #error-msg { font-size: 13px; color: rgba(255,255,255,0.6); text-align: center; line-height: 1.8; white-space: pre-line; }
-    #retry-btn {
-      padding: 13px 40px; border-radius: 999px; background: rgba(255,255,255,0.14);
-      color: #fff; font-size: 15px; font-weight: 700; border: 1.5px solid rgba(255,255,255,0.25);
-      cursor: pointer; -webkit-appearance: none;
-    }
+    #retry-btn { padding: 12px 36px; border-radius: 999px; background: rgba(255,255,255,0.14); color: #fff;
+      font-size: 15px; font-weight: 700; border: 1.5px solid rgba(255,255,255,0.25); cursor: pointer; -webkit-appearance: none; }
 
-    /* UI */
-    #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; transition: opacity 0.4s; }
-    #ui.hidden { opacity: 0; pointer-events: none; }
-
-    #header { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 52px 20px 16px; padding-top: calc(env(safe-area-inset-top, 20px) + 20px); background: linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%); pointer-events: auto; }
-    #logo-icon { width: 36px; height: 36px; border-radius: 10px; overflow: hidden; background: var(--blue); display: flex; align-items: center; justify-content: center; }
-    #logo-icon img { width: 26px; height: 26px; object-fit: contain; }
-    #logo-text { font-size: 22px; font-weight: 800; letter-spacing: 0.12em; color: #fff; }
-    #info-btn { width: 34px; height: 34px; border-radius: 11px; border: 3px solid #fff; color: #fff; font-size: 16px; font-weight: 700; font-family: 'Comfortaa', -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; cursor: pointer; background: rgba(0,115,255,0.55); pointer-events: auto; }
-
-    #bottom-controls { position: absolute; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px 20px 44px; padding-bottom: calc(env(safe-area-inset-bottom, 24px) + 24px); background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%); pointer-events: auto; }
-
-    #light-row { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 280px; }
-    .sun-icon { width: 18px; height: 18px; opacity: 0.7; flex-shrink: 0; }
-    #light-slider { -webkit-appearance: none; appearance: none; flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.25); outline: none; }
-    #light-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3); cursor: pointer; }
-
-    #aux-row { display: flex; align-items: center; gap: 16px; }
-    .aux-btn { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.12); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1.5px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s, transform 0.1s; }
-    .aux-btn:active { transform: scale(0.93); }
-    .aux-btn.active { background: rgba(255,255,255,0.28); }
-    .aux-btn svg { width: 22px; height: 22px; }
-
-    #mode-toggle { width: 120px; height: 52px; border-radius: 999px; background: rgba(255,255,255,0.15); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1.5px solid rgba(255,255,255,0.22); display: flex; align-items: center; padding: 4px; cursor: pointer; position: relative; }
-    #toggle-bg { position: absolute; width: 46px; height: 44px; border-radius: 50%; background: var(--blue); transition: left 0.3s cubic-bezier(0.34,1.56,0.64,1); left: 4px; box-shadow: 0 4px 16px rgba(0,115,255,0.5); }
-    #mode-toggle.shape-active #toggle-bg { left: calc(100% - 50px); }
-    .toggle-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; flex-shrink: 0; transition: opacity 0.3s; }
-    .toggle-icon svg { width: 26px; height: 26px; }
-    #icon-default { opacity: 1; }
-    #icon-shape { opacity: 0.45; }
-    #mode-toggle.shape-active #icon-default { opacity: 0.45; }
-    #mode-toggle.shape-active #icon-shape { opacity: 1; }
-
-    #hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); display: flex; flex-direction: column; align-items: center; gap: 16px; z-index: 9; pointer-events: none; transition: opacity 0.5s; width: 82%; }
+    /* ── 스캔 안내 (카드 인식 전) ─────────────── */
+    #hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 9;
+      display: flex; flex-direction: column; align-items: center; gap: 16px; width: 84%;
+      pointer-events: none; transition: opacity 0.5s; }
     #hint.hidden { opacity: 0; }
-    .hint-cam { width: 84px; height: 84px; color: rgba(255,255,255,0.92); filter: drop-shadow(0 2px 10px rgba(0,0,0,0.4)); animation: pulse 2.2s ease-in-out infinite; }
-    @keyframes pulse { 0%,100% { opacity: 0.9; transform: scale(1); } 50% { opacity: 0.55; transform: scale(0.94); } }
-    .hint-text { font-size: 17px; font-weight: 700; color: rgba(255,255,255,0.95); letter-spacing: 0.02em; text-align: center; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
-    .hint-sub { font-size: 12px; color: rgba(255,255,255,0.55); letter-spacing: 0.04em; text-align: center; }
+    .hint-card { width: 76px; height: 76px; color: rgba(255,255,255,0.9);
+      filter: drop-shadow(0 2px 10px rgba(0,0,0,0.45)); animation: float 2.4s ease-in-out infinite; }
+    @keyframes float { 0%,100% { transform: translateY(0); opacity: 0.9; } 50% { transform: translateY(-6px); opacity: 0.6; } }
+    .hint-text { font-size: 18px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.55); letter-spacing: 0.01em; }
 
-    #bw-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 8; opacity: 0; transition: opacity 0.3s; }
-    #bw-overlay.active { opacity: 1; background: rgba(128,128,128,1); mix-blend-mode: color; }
+    /* ── 모드 토글 (1번 카드에서만) ───────────── */
+    #toggle { position: fixed; left: 50%; transform: translateX(-50%) translateY(20px);
+      bottom: calc(env(safe-area-inset-bottom, 20px) + 26px); z-index: 12;
+      display: flex; align-items: center; padding: 6px; gap: 2px;
+      background: rgba(255,255,255,0.16); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1.5px solid rgba(255,255,255,0.28); border-radius: 999px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3); opacity: 0; pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+    #toggle.show { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+    .seg { position: relative; z-index: 1; min-width: 96px; height: 52px; padding: 0 22px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      font-size: 17px; font-weight: 700; color: rgba(255,255,255,0.7); transition: color 0.25s; }
+    .seg.active { color: #fff; }
+    #seg-pill { position: absolute; top: 6px; bottom: 6px; left: 6px; width: calc(50% - 6px);
+      border-radius: 999px; background: var(--blue); box-shadow: 0 4px 16px rgba(0,115,255,0.5);
+      transition: left 0.3s cubic-bezier(0.34,1.56,0.64,1); z-index: 0; }
+    #toggle.shape #seg-pill { left: 50%; }
 
-    /* 클린뷰 캡처 레이어 (UI가 숨겨진 상태에서만 표시) */
-    #capture-layer { position: fixed; inset: 0; z-index: 11; pointer-events: none; display: none; }
-    #capture-layer.show { display: block; }
-    #capture-btn {
-      position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 24px) + 34px);
-      transform: translateX(-50%); width: 74px; height: 74px; border-radius: 50%;
-      background: transparent; border: none; padding: 0; cursor: pointer; pointer-events: auto;
+    /* ── 반응형: iPad 가로 ───────────────────── */
+    @media (orientation: landscape) and (min-width: 720px) {
+      #toggle { bottom: calc(env(safe-area-inset-bottom, 24px) + 40px); padding: 7px; }
+      .seg { min-width: 120px; height: 60px; font-size: 19px; }
+      .splash-logo { font-size: 52px; }
+      .hint-text { font-size: 20px; }
     }
-    #capture-btn::before { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 4px solid rgba(255,255,255,0.9); }
-    #capture-btn::after { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: #fff; transition: transform 0.1s; }
-    #capture-btn:active::after { transform: scale(0.86); }
-    #exit-clean {
-      position: absolute; top: calc(env(safe-area-inset-top, 20px) + 18px); right: 18px;
-      width: 40px; height: 40px; border-radius: 50%; pointer-events: auto; cursor: pointer;
-      background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      border: 1.5px solid rgba(255,255,255,0.3); color: #fff; font-size: 20px; font-weight: 500;
-      display: flex; align-items: center; justify-content: center;
-    }
-    #shot-count {
-      position: absolute; top: calc(env(safe-area-inset-top, 20px) + 22px); left: 18px;
-      padding: 7px 14px; border-radius: 999px; background: rgba(0,0,0,0.4);
-      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #fff;
-      font-size: 13px; font-weight: 700; letter-spacing: 0.04em; pointer-events: none;
-      display: flex; align-items: center; gap: 6px;
-    }
-    #shot-count svg { width: 15px; height: 15px; }
-
-    /* 셔터 플래시 */
-    #flash { position: fixed; inset: 0; background: #fff; opacity: 0; z-index: 40; pointer-events: none; }
-    #flash.fire { animation: flash 0.4s ease; }
-    @keyframes flash { 0% { opacity: 0; } 12% { opacity: 0.9; } 100% { opacity: 0; } }
-
-    /* 캡처 미리보기 오버레이 */
-    #preview { position: fixed; inset: 0; z-index: 50; background: rgba(6,10,20,0.94); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: calc(env(safe-area-inset-top, 20px) + 20px) 20px calc(env(safe-area-inset-bottom, 24px) + 24px); }
-    #preview.show { display: flex; }
-    #preview-title { font-size: 14px; color: rgba(255,255,255,0.55); letter-spacing: 0.04em; text-align: center; }
-    #preview-img { max-width: 100%; max-height: 62vh; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
-    #preview-actions { display: flex; gap: 14px; }
-    .pv-btn { padding: 14px 30px; border-radius: 999px; font-size: 15px; font-weight: 700; border: none; cursor: pointer; -webkit-appearance: none; }
-    .pv-primary { background: var(--blue); color: #fff; box-shadow: 0 4px 18px rgba(0,115,255,0.5); }
-    .pv-ghost { background: rgba(255,255,255,0.14); color: #fff; border: 1.5px solid rgba(255,255,255,0.25); }
   </style>
 </head>
 <body>
 
+<div id="ar-container"></div>
+
+<!-- 스캔 안내 -->
+<div id="hint" class="hidden">
+  <svg class="hint-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="5" width="18" height="14" rx="2.5"/>
+    <path d="M7 15l3.2-3.4 2.3 2.2 2.4-3 2.1 2.6"/>
+    <circle cx="8.4" cy="9.2" r="1.2" fill="currentColor" stroke="none"/>
+  </svg>
+  <div class="hint-text">카드를 비춰주세요</div>
+</div>
+
+<!-- 모드 토글: 1번 카드 인식 시에만 표시 -->
+<div id="toggle">
+  <div id="seg-pill"></div>
+  <div class="seg active" id="seg-default">기본</div>
+  <div class="seg" id="seg-shape">도형</div>
+</div>
+
+<!-- 시작 화면 -->
 <div id="splash">
   <div class="splash-logo">W<span>E</span>IV</div>
-  <button id="start-btn">카메라 시작</button>
-  <div class="splash-sub">버튼을 누르면 카메라 접근 권한을 요청합니다</div>
-  <div class="loading-bar-wrap" id="bar-wrap"><div class="loading-bar" id="loading-bar"></div></div>
+  <div class="splash-title">카드를 비춰주세요</div>
+  <button id="start-btn">시작</button>
+  <div class="bar-wrap" id="bar-wrap"><div class="bar" id="bar"></div></div>
   <div id="loading-text">로딩 중...</div>
-
   <div id="error-box">
-    <div id="error-title">카메라를 시작할 수 없어요</div>
+    <div id="error-title">시작할 수 없어요</div>
     <div id="error-msg"></div>
     <button id="retry-btn">다시 시도</button>
   </div>
 </div>
 
-<div id="bw-overlay"></div>
-<div id="hint" class="hidden">
-  <svg class="hint-cam" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M9 3L7.5 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.5L15 3H9z"/>
-    <circle cx="12" cy="12.5" r="3.4" fill="#0a0f1e"/>
-  </svg>
-  <div class="hint-text">원하는 조각을 카메라에 보여주세요</div>
-  <div class="hint-sub">* 카메라 접근 허용 시에만 가능 *</div>
-</div>
-<div id="ar-container"></div>
-
-<div id="ui">
-  <div id="header">
-    <div id="logo-icon"><img src="logo.png" alt="WEIV" /></div>
-    <div id="logo-text">WEIV</div>
-    <button id="info-btn">i</button>
-  </div>
-  <div id="bottom-controls">
-    <div id="light-row">
-      <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-        <circle cx="12" cy="12" r="4"/>
-        <line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/>
-        <line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/>
-        <line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/>
-        <line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/>
-      </svg>
-      <input type="range" id="light-slider" min="0" max="100" value="60" />
-    </div>
-    <div id="aux-row">
-      <button class="aux-btn" id="cleanview-btn" title="클린뷰 (UI 숨김 · 캡처)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-          <line x1="1" y1="1" x2="23" y2="23"/>
-        </svg>
-      </button>
-      <button class="aux-btn" id="bw-btn" title="흑백(소묘)">
-        <svg viewBox="0 0 24 24" stroke="white" stroke-width="2">
-          <circle cx="12" cy="12" r="9" fill="none"/>
-          <path d="M12 3a9 9 0 0 1 0 18z" fill="white" stroke="none"/>
-        </svg>
-      </button>
-    </div>
-    <div id="mode-toggle">
-      <div id="toggle-bg"></div>
-      <div class="toggle-icon" id="icon-default">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-          <line x1="12" y1="22.08" x2="12" y2="12"/>
-        </svg>
-      </div>
-      <div class="toggle-icon" id="icon-shape">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
-          <path d="M1 4.5V3a2 2 0 0 1 2-2h1.5"/><path d="M22.5 3H21a2 2 0 0 0-2 2v1.5"/>
-          <path d="M22.5 20.5H21a2 2 0 0 1-2-2V17"/><path d="M1 19.5V21a2 2 0 0 0 2 2h1.5"/>
-          <circle cx="12" cy="12" r="3" stroke-dasharray="2 2"/>
-          <line x1="12" y1="5" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="19"/>
-          <line x1="5" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="19" y2="12"/>
-        </svg>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 클린뷰: UI를 숨기고 3D만 보이는 상태 + 셔터 -->
-<div id="capture-layer">
-  <div id="shot-count">
-    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-      <circle cx="12" cy="13" r="4"/>
-    </svg>
-    <span id="shot-num">0</span> / 3
-  </div>
-  <button id="exit-clean" aria-label="클린뷰 종료">✕</button>
-  <button id="capture-btn" aria-label="사진 촬영"></button>
-</div>
-
-<div id="flash"></div>
-
-<!-- 촬영 결과 미리보기 -->
-<div id="preview">
-  <div id="preview-title">이미지를 길게 눌러 저장하거나, 공유 버튼을 누르세요</div>
-  <img id="preview-img" alt="촬영 결과" />
-  <div id="preview-actions">
-    <button class="pv-btn pv-primary" id="share-btn">저장 / 공유</button>
-    <button class="pv-btn pv-ghost" id="close-preview">닫기</button>
-  </div>
-</div>
-
-<!-- 진단: 모듈/CDN 로딩 실패 시 화면이 조용히 멈추지 않고 원인을 표시 -->
+<!-- 진단: 모듈/CDN 로딩 실패 시 화면이 조용히 멈추지 않고 원인 표시 -->
 <script>
   (function () {
     function surface(text) {
-      var bw = document.getElementById('bar-wrap');
-      var lt = document.getElementById('loading-text');
-      var eb = document.getElementById('error-box');
-      var et = document.getElementById('error-title');
-      var em = document.getElementById('error-msg');
-      var sb = document.getElementById('start-btn');
-      var ss = document.querySelector('.splash-sub');
-      if (bw) bw.style.display = 'none';
-      if (lt) lt.style.display = 'none';
-      if (sb) sb.style.display = 'none';
-      if (ss) ss.style.display = 'none';
-      if (et) et.textContent = '실행 오류';
-      if (em) em.textContent = text;
-      if (eb) eb.classList.add('show');
+      var g = function (id) { return document.getElementById(id); };
+      if (g('bar-wrap')) g('bar-wrap').style.display = 'none';
+      if (g('loading-text')) g('loading-text').style.display = 'none';
+      if (g('start-btn')) g('start-btn').style.display = 'none';
+      if (g('error-title')) g('error-title').textContent = '실행 오류';
+      if (g('error-msg')) g('error-msg').textContent = text;
+      if (g('error-box')) g('error-box').classList.add('show');
     }
     window.addEventListener('error', function (e) {
       if (window.__weivReady) return;
-      var m = (e && (e.message || '')) + (e && e.filename ? '\n(' + e.filename + ')' : '');
-      surface('스크립트를 불러오지 못했어요.\n인터넷 연결, 또는 광고차단·사내망에서 CDN(jsdelivr) 접속이 막혔는지 확인해 주세요.\n\n' + m);
+      surface('스크립트를 불러오지 못했어요.\n인터넷 연결, 또는 광고차단·사내망에서 CDN(jsdelivr) 접속이 막혔는지 확인해 주세요.\n\n' + ((e && e.message) || ''));
     }, true);
     window.addEventListener('unhandledrejection', function (e) {
       if (window.__weivReady) return;
       surface('초기화 중 오류가 발생했어요.\n' + ((e && e.reason && (e.reason.message || e.reason)) || ''));
     });
     window.addEventListener('DOMContentLoaded', function () {
-      setTimeout(function () {
-        if (!window.__weivReady) {
-          surface('스크립트 로딩이 지연되고 있어요.\n네트워크를 확인하거나 새로고침해 주세요.\n(CDN 접속 차단 가능성)');
-        }
-      }, 8000);
+      setTimeout(function () { if (!window.__weivReady) surface('스크립트 로딩이 지연되고 있어요.\n네트워크를 확인하거나 새로고침해 주세요.\n(CDN 접속 차단 가능성)'); }, 8000);
     });
   })();
 </script>
 
 <script type="module">
-  window.__weivReady = true; // 모듈 본문이 실행됐다 = three/MindAR import 성공
+  window.__weivReady = true;
   import * as THREE from 'three';
   import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
   import { MindARThree } from 'mindar-image-three';
 
-  /* ── 4-1-5. URL 기반 콘텐츠 분기 ──────────────────────────────
-     접속 URL에 따라 로드할 GLB 세트를 결정한다.
-     - ?set=키  또는  경로 마지막 세그먼트(weiv.kr/april-xK92mP)로 판별
-     - 매월 신규 QR 배포 시, 아래 CONTENT_SETS에 { 랜덤키: { default, shape } } 만 추가하면 됨
-     - 정의되지 않은 키는 기본 세트로 폴백 (URL 유추 방지 + 안전) */
-  const CONTENT_SETS = {
-    basic: {
-      label: '기본',
-      default: './elephant-default.glb',
-      shape:   './elephant_shape.glb',
-    },
-    // 예시) 'april-xk92mp': { label:'4월', default:'./umbrella-flower.glb', shape:'./umbrella-flower_shape.glb' },
-  };
-  const DEFAULT_SET = 'basic';
+  const $ = (id) => document.getElementById(id);
+  const splashEl = $('splash'), startBtn = $('start-btn'), barWrap = $('bar-wrap'),
+        bar = $('bar'), loadingTxt = $('loading-text'), errorBox = $('error-box'),
+        hintEl = $('hint'), toggleEl = $('toggle');
 
-  function resolveSet() {
-    const params = new URLSearchParams(location.search);
-    let key = params.get('set');
-    if (!key) {
-      const seg = location.pathname.split('/').filter(Boolean).pop() || '';
-      if (seg && !/\.[a-z0-9]+$/i.test(seg)) key = seg; // 파일명(.html 등)은 제외
-    }
-    key = (key || DEFAULT_SET).toLowerCase();
-    return CONTENT_SETS[key] || CONTENT_SETS[DEFAULT_SET];
-  }
-  const contentSet = resolveSet();
+  // 워치독 오탐 복구 + 초기 상태 보장
+  errorBox.classList.remove('show'); startBtn.style.display = '';
+  barWrap.style.display = 'none'; loadingTxt.style.display = 'none';
 
-  /* ── 상태 ──────────────────────────────────────────────── */
-  let isShapeMode = false, isCleanView = false, isBW = false;
-  let modelDefault = null, modelShape = null, targetFound = false;
-  let started = false, shotCount = 0;
-  let ambientLight = null, dirLight = null;
+  let started = false, isShape = false;
+  let card1Found = false, card2Found = false;
+  let carDefault = null, carShape = null, carFind = null;
   let mindarThree = null, renderer = null, scene = null, camera = null;
 
-  const $ = (id) => document.getElementById(id);
-  const splashEl   = $('splash');
-  const barWrap    = $('bar-wrap');
-  const loadingBar = $('loading-bar');
-  const loadingTxt = $('loading-text');
-  const startBtn   = $('start-btn');
-  const errorBox   = $('error-box');
-  const hintEl     = $('hint');
-  const uiEl       = $('ui');
-  const captureLayer = $('capture-layer');
-  const previewEl  = $('preview');
-  const previewImg = $('preview-img');
-
-  // 모듈이 정상 실행됐으므로, 혹시 워치독이 먼저 띄운 오류 화면을 정상 상태로 복구
-  errorBox.classList.remove('show');
-  startBtn.style.display = '';
-  barWrap.style.display = 'none';
-  loadingTxt.style.display = 'none';
-  document.querySelector('.splash-sub').style.display = '';
-
-  function setProgress(pct, text) { loadingBar.style.width = pct + '%'; loadingTxt.textContent = text; }
+  function setProgress(pct, text) { bar.style.width = pct + '%'; loadingTxt.textContent = text; }
   function showProgress() {
     startBtn.style.display = 'none';
-    document.querySelector('.splash-sub').style.display = 'none';
+    document.querySelector('.splash-title').style.display = 'none';
     errorBox.classList.remove('show');
-    barWrap.style.display = 'block';
-    loadingTxt.style.display = 'block';
+    barWrap.style.display = 'block'; loadingTxt.style.display = 'block';
   }
   function showError(title, msg) {
-    barWrap.style.display = 'none';
-    loadingTxt.style.display = 'none';
-    $('error-title').textContent = title;
-    $('error-msg').textContent = msg;
+    barWrap.style.display = 'none'; loadingTxt.style.display = 'none';
+    $('error-title').textContent = title; $('error-msg').textContent = msg;
     errorBox.classList.add('show');
   }
+  function updateHint() {
+    const anyFound = card1Found || card2Found;
+    hintEl.classList.toggle('hidden', anyFound);
+  }
+  function updateToggle() {
+    toggleEl.classList.toggle('show', card1Found);      // 1번 카드에서만
+  }
 
-  // iOS Safari: 카메라 권한은 (1) HTTPS 컨텍스트에서 (2) 탭 제스처 안에서 요청되어야 함.
-  // 무거운 모델을 로딩하기 전에 권한부터 즉시 요청해 팝업이 확실히 뜨게 한다.
+  // iOS Safari: 권한은 HTTPS + 탭 제스처 안에서. 무거운 로딩 전에 먼저 요청.
   async function requestCameraPermission() {
     if (!window.isSecureContext) throw { _kind: 'insecure' };
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw { _kind: 'unsupported' };
     let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    } catch (e) {
-      if (e && (e.name === 'OverconstrainedError' || e.name === 'NotFoundError')) {
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); }
+    catch (e) {
+      if (e && (e.name === 'OverconstrainedError' || e.name === 'NotFoundError'))
         stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      } else { throw e; }
+      else throw e;
     }
-    stream.getTracks().forEach(t => t.stop()); // 권한만 확보, MindAR가 자체 스트림을 다시 연다
+    stream.getTracks().forEach(t => t.stop());
   }
 
   function loadGLB(src) {
     return new Promise((resolve, reject) => {
-      const loader = new GLTFLoader();
-      loader.load(src, (gltf) => {
+      new GLTFLoader().load(src, (gltf) => {
         const model = gltf.scene;
         const box = new THREE.Box3().setFromObject(model);
         const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = 1.0 / maxDim;
-        model.scale.setScalar(scale);
-        const center = box.getCenter(new THREE.Vector3());
-        model.position.sub(center.multiplyScalar(scale));
+        const s = 1.0 / Math.max(size.x, size.y, size.z);
+        model.scale.setScalar(s);
+        model.position.sub(box.getCenter(new THREE.Vector3()).multiplyScalar(s));
         resolve(model);
       }, undefined, reject);
     });
@@ -406,82 +219,61 @@
     started = true;
     showProgress();
 
-    // 1) 카메라 권한 먼저 (제스처 컨텍스트 유지)
     setProgress(15, '카메라 권한을 요청합니다...\n(팝업에서 "허용"을 눌러주세요)');
-    try {
-      await requestCameraPermission();
-    } catch (e) {
+    try { await requestCameraPermission(); }
+    catch (e) {
       started = false;
-      if (e && e._kind === 'insecure') {
-        showError('보안 연결이 필요해요', 'HTTPS 주소에서만 카메라를 쓸 수 있어요.\nGitHub Pages(https://) 주소로 접속해 주세요.');
-      } else if (e && e._kind === 'unsupported') {
-        showError('카메라를 지원하지 않아요', '사파리 최신 버전에서 다시 시도해 주세요.');
-      } else if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) {
-        showError('카메라 권한이 거부됐어요', '설정 › Safari › 카메라 › "허용"으로 바꾼 뒤,\n페이지를 새로고침하고 다시 시도해 주세요.\n(또는 주소창 왼쪽 "ㄱㄱ" › 웹사이트 설정)');
-      } else if (e && e.name === 'NotReadableError') {
-        showError('카메라를 사용할 수 없어요', '다른 앱이 카메라를 쓰고 있는지 확인 후\n다시 시도해 주세요.');
-      } else {
-        showError('카메라 오류', (e && (e.name + (e.message ? ': ' + e.message : ''))) || '알 수 없는 오류가 발생했어요.');
-      }
+      if (e && e._kind === 'insecure') showError('보안 연결이 필요해요', 'HTTPS 주소에서만 카메라를 쓸 수 있어요.\nGitHub Pages(https://)로 접속해 주세요.');
+      else if (e && e._kind === 'unsupported') showError('카메라를 지원하지 않아요', '사파리 최신 버전에서 다시 시도해 주세요.');
+      else if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) showError('카메라 권한이 거부됐어요', '설정 › Safari › 카메라 › "허용"으로 바꾼 뒤\n새로고침하고 다시 시도해 주세요.');
+      else if (e && e.name === 'NotReadableError') showError('카메라를 사용할 수 없어요', '다른 앱이 카메라를 쓰고 있는지 확인 후\n다시 시도해 주세요.');
+      else showError('카메라 오류', (e && (e.name + (e.message ? ': ' + e.message : ''))) || '알 수 없는 오류');
       return;
     }
 
-    // 2) AR 엔진 초기화
     setProgress(35, 'AR 엔진 초기화 중...');
     try {
       mindarThree = new MindARThree({
         container: $('ar-container'),
         imageTargetSrc: './targets.mind',
+        maxTrack: 2,                 // 두 카드 동시/독립 추적
         uiLoading: 'no', uiScanning: 'no', uiError: 'no',
-        // 떨림(지터) 완화: One Euro Filter.
-        // filterMinCF를 기본 0.001 → 0.0001로 낮춰 정지 시 흔들림을 줄이고,
-        // filterBeta(=1000)는 유지해 실제로 움직일 때의 반응성은 그대로 둔다.
-        filterMinCF: 0.0001,
-        filterBeta: 1000,
+        filterMinCF: 0.0001, filterBeta: 1000,   // 떨림(지터) 완화
       });
       ({ renderer, scene, camera } = mindarThree);
-    } catch (e) {
-      started = false;
-      showError('AR 엔진 로드 실패', '네트워크 연결을 확인하고 다시 시도해 주세요.\n(' + (e && e.message ? e.message : e) + ')');
-      return;
-    }
+    } catch (e) { started = false; showError('AR 엔진 로드 실패', '네트워크를 확인하고 다시 시도해 주세요.'); return; }
 
-    ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-    dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(0, 5, 5);
-    scene.add(dirLight);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.0); dir.position.set(0, 4, 5); scene.add(dir);
 
-    // 3) 모델 로딩 (URL에 따라 결정된 세트)
     try {
-      setProgress(55, '기본 모델 로딩 중...');
-      modelDefault = await loadGLB(contentSet.default);
-      setProgress(75, '도형 모델 로딩 중...');
-      modelShape = await loadGLB(contentSet.shape);
-    } catch (e) {
-      started = false;
-      showError('3D 모델 로드 실패', '모델 파일을 불러오지 못했어요.\n다시 시도해 주세요.');
-      return;
-    }
+      setProgress(55, '모델 로딩 중... (1/3)');
+      carDefault = await loadGLB('./car_default.glb');
+      setProgress(72, '모델 로딩 중... (2/3)');
+      carShape = await loadGLB('./car_shape.glb');
+      setProgress(88, '모델 로딩 중... (3/3)');
+      carFind = await loadGLB('./car_find.glb');
+    } catch (e) { started = false; showError('3D 모델 로드 실패', '모델 파일을 불러오지 못했어요.\n다시 시도해 주세요.'); return; }
 
-    const anchor = mindarThree.addAnchor(0);
-    anchor.group.add(modelDefault);
-    anchor.group.add(modelShape);
-    modelDefault.visible = true;
-    modelShape.visible = false;
+    // 1번 카드: 캠핑카 (기본/도형 토글)
+    const anchor1 = mindarThree.addAnchor(0);
+    anchor1.group.add(carDefault); anchor1.group.add(carShape);
+    carDefault.visible = !isShape; carShape.visible = isShape;
+    anchor1.onTargetFound = () => { card1Found = true; updateHint(); updateToggle(); };
+    anchor1.onTargetLost  = () => { card1Found = false; updateHint(); updateToggle(); };
 
-    anchor.onTargetFound = () => { targetFound = true; hintEl.classList.add('hidden'); };
-    anchor.onTargetLost = () => { targetFound = false; if (!isCleanView) hintEl.classList.remove('hidden'); };
+    // 2번 카드: 발견모드 (UI 없음)
+    const anchor2 = mindarThree.addAnchor(1);
+    anchor2.group.add(carFind);
+    anchor2.onTargetFound = () => { card2Found = true; updateHint(); };
+    anchor2.onTargetLost  = () => { card2Found = false; updateHint(); };
 
-    // 4) AR 시작 (권한 이미 확보됨)
-    setProgress(92, 'AR 시작 중...');
-    try {
-      await mindarThree.start();
-    } catch (e) {
+    setProgress(96, 'AR 시작 중...');
+    try { await mindarThree.start(); }
+    catch (e) {
       started = false;
       showError('AR 시작 실패', (e && e.name === 'NotAllowedError')
-        ? '카메라 권한이 거부됐어요. 설정에서 허용 후 다시 시도해 주세요.'
-        : '다시 시도해 주세요.\n(' + (e && e.message ? e.message : e) + ')');
+        ? '카메라 권한이 거부됐어요. 설정에서 허용 후 다시 시도해 주세요.' : '다시 시도해 주세요.');
       return;
     }
 
@@ -489,130 +281,28 @@
     setTimeout(() => {
       splashEl.classList.add('hidden');
       setTimeout(() => { splashEl.style.display = 'none'; hintEl.classList.remove('hidden'); }, 500);
-    }, 300);
+    }, 250);
 
-    renderer.setAnimationLoop(() => { renderer.render(scene, camera); });
+    renderer.setAnimationLoop(() => renderer.render(scene, camera));
   }
 
   startBtn.addEventListener('click', start);
   $('retry-btn').addEventListener('click', () => {
-    errorBox.classList.remove('show');
-    startBtn.style.display = '';
-    document.querySelector('.splash-sub').style.display = '';
-    setProgress(0, '로딩 중...');
-    start();
+    errorBox.classList.remove('show'); startBtn.style.display = '';
+    document.querySelector('.splash-title').style.display = '';
+    setProgress(0, '로딩 중...'); start();
   });
 
-  // 조명 밝기 슬라이더
-  $('light-slider').addEventListener('input', (e) => {
-    if (!ambientLight || !dirLight) return;
-    const v = e.target.value / 100;
-    ambientLight.intensity = v * 0.8;
-    dirLight.intensity = v * 1.2;
-  });
-
-  // 일반 ↔ 도형 모드
-  $('mode-toggle').addEventListener('click', () => {
-    isShapeMode = !isShapeMode;
-    $('mode-toggle').classList.toggle('shape-active', isShapeMode);
-    if (modelDefault && modelShape) { modelDefault.visible = !isShapeMode; modelShape.visible = isShapeMode; }
-  });
-
-  /* ── 4-1-6. 클린뷰 캡처 ──────────────────────────────────── */
-  function enterCleanView() {
-    isCleanView = true;
-    uiEl.classList.add('hidden');
-    hintEl.classList.add('hidden');
-    captureLayer.classList.add('show');
+  // 기본 ↔ 도형 토글 (1번 카드 모델만 전환, 애니메이션 없음)
+  function setShape(v) {
+    isShape = v;
+    toggleEl.classList.toggle('shape', isShape);
+    $('seg-default').classList.toggle('active', !isShape);
+    $('seg-shape').classList.toggle('active', isShape);
+    if (carDefault && carShape) { carDefault.visible = !isShape; carShape.visible = isShape; }
   }
-  function exitCleanView() {
-    isCleanView = false;
-    uiEl.classList.remove('hidden');
-    captureLayer.classList.remove('show');
-    if (!targetFound) hintEl.classList.remove('hidden');
-  }
-  $('cleanview-btn').addEventListener('click', enterCleanView);
-  $('exit-clean').addEventListener('click', exitCleanView);
-
-  function drawCover(ctx, media, W, H) {
-    const mw = media.videoWidth || media.width, mh = media.videoHeight || media.height;
-    if (!mw || !mh) return;
-    const s = Math.max(W / mw, H / mh);
-    const dw = mw * s, dh = mh * s;
-    ctx.drawImage(media, (W - dw) / 2, (H - dh) / 2, dw, dh);
-  }
-
-  // 카메라 영상 + 3D 모델(+흑백)을 하나의 캔버스로 합성
-  function composeFrame() {
-    const gl = renderer.domElement;
-    const W = gl.width, H = gl.height;
-    const out = document.createElement('canvas');
-    out.width = W; out.height = H;
-    const ctx = out.getContext('2d');
-
-    const video = document.querySelector('#ar-container video');
-    if (video && video.videoWidth) drawCover(ctx, video, W, H);
-
-    // WebGL 캔버스는 버퍼가 present 직후 비워질 수 있어, 읽기 직전에 동기 렌더 후 즉시 draw
-    renderer.render(scene, camera);
-    ctx.drawImage(gl, 0, 0, W, H);
-
-    if (isBW) {
-      const bw = document.createElement('canvas');
-      bw.width = W; bw.height = H;
-      const bctx = bw.getContext('2d');
-      bctx.filter = 'grayscale(1)';
-      bctx.drawImage(out, 0, 0);
-      return bw;
-    }
-    return out;
-  }
-
-  let lastBlob = null;
-  $('capture-btn').addEventListener('click', () => {
-    if (!renderer) return;
-    const canvas = composeFrame();
-    $('flash').classList.remove('fire'); void $('flash').offsetWidth; $('flash').classList.add('fire');
-
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      lastBlob = blob;
-      previewImg.src = URL.createObjectURL(blob);
-      shotCount += 1;
-      $('shot-num').textContent = Math.min(shotCount, 3);
-      previewEl.classList.add('show');
-    }, 'image/png');
-  });
-
-  $('close-preview').addEventListener('click', () => {
-    previewEl.classList.remove('show');
-    if (previewImg.src) { URL.revokeObjectURL(previewImg.src); previewImg.removeAttribute('src'); }
-  });
-
-  // 저장/공유: iOS Safari는 파일 공유(Web Share Level 2) 지원 → 사진 앱에 저장 가능.
-  // 미지원 시엔 이미지를 길게 눌러 저장하는 안내로 대체.
-  $('share-btn').addEventListener('click', async () => {
-    if (!lastBlob) return;
-    const file = new File([lastBlob], `weiv-${Date.now()}.png`, { type: 'image/png' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: 'WEIV' }); return; }
-      catch (e) { /* 사용자가 취소 → 아래 폴백 */ }
-    }
-    // 폴백: 새 탭으로 이미지 열기 (길게 눌러 저장)
-    const url = URL.createObjectURL(lastBlob);
-    window.open(url, '_blank');
-  });
-
-  // 흑백(소묘) 필터
-  $('bw-btn').addEventListener('click', () => {
-    isBW = !isBW;
-    $('bw-overlay').classList.toggle('active', isBW);
-    $('bw-btn').classList.toggle('active', isBW);
-  });
-
-  $('info-btn').addEventListener('click', () => {
-    alert('WEIV - AR 정물 미술 교구 라이브러리\n토큰을 카메라에 비춰 3D 정물을 관찰하세요.\n\n· 카메라 버튼: 클린뷰에서 사진 촬영\n· 큐브 토글: 일반 ↔ 도형(구조) 모드\n· 반달 버튼: 흑백(소묘) 필터');
-  });
+  $('seg-default').addEventListener('click', () => setShape(false));
+  $('seg-shape').addEventListener('click', () => setShape(true));
 </script>
 </body>
 </html>
