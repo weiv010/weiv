@@ -205,14 +205,20 @@
     return new Promise((resolve, reject) => {
       new GLTFLoader().load(src, (gltf) => {
         const model = gltf.scene;
-        // 최대 치수를 1로 정규화하고, 모든 축을 카드 중심에 정렬
+        // 최대 치수를 1로 정규화
         let box = new THREE.Box3().setFromObject(model);
         const size = box.getSize(new THREE.Vector3());
         const s = 1.0 / Math.max(size.x, size.y, size.z);
         model.scale.setScalar(s);
+        // 카드를 바닥처럼: 모델 up(+Y)을 카드 법선(+Z)으로 눕혀 세우고,
+        // X·Y는 카드 중심, 밑면(바퀴)은 카드 면(z=0)에 닿게 배치
+        model.rotation.x = Math.PI / 2;
         model.updateMatrixWorld(true);
         box = new THREE.Box3().setFromObject(model);
-        model.position.sub(box.getCenter(new THREE.Vector3()));  // 카드 중심 정렬
+        const c = box.getCenter(new THREE.Vector3());
+        model.position.x -= c.x;
+        model.position.y -= c.y;
+        model.position.z -= box.min.z;   // 바퀴를 카드 표면에 안착
         resolve(model);
       }, undefined, reject);
     });
