@@ -20,14 +20,11 @@
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     :root { --blue: #0073ff; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0f1e;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      -webkit-user-select: none; user-select: none; }
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif; -webkit-user-select: none; user-select: none; }
 
-    /* MindAR가 video/canvas의 크기·위치를 직접 계산해 마커와 정렬하므로
-       여기서 크기를 강제하지 않는다 (강제 시 모델이 한쪽으로 밀림). */
     #ar-container { position: fixed; inset: 0; overflow: hidden; }
 
-    /* ── 시작 화면 ───────────────────────────── */
+    /* 시작 화면 */
     #splash { position: fixed; inset: 0; z-index: 100; background: #0a0f1e;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 30px; padding: 32px; transition: opacity 0.5s ease; }
@@ -49,17 +46,17 @@
     #retry-btn { padding: 12px 36px; border-radius: 999px; background: rgba(255,255,255,0.14); color: #fff;
       font-size: 15px; font-weight: 700; border: 1.5px solid rgba(255,255,255,0.25); cursor: pointer; -webkit-appearance: none; }
 
-    /* ── 스캔 안내 (카드 인식 전) ─────────────── */
+    /* 스캔 안내 */
     #hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 9;
       display: flex; flex-direction: column; align-items: center; gap: 16px; width: 84%;
       pointer-events: none; transition: opacity 0.5s; }
     #hint.hidden { opacity: 0; }
-    .hint-card { width: 76px; height: 76px; color: rgba(255,255,255,0.9);
-      filter: drop-shadow(0 2px 10px rgba(0,0,0,0.45)); animation: float 2.4s ease-in-out infinite; }
-    @keyframes float { 0%,100% { transform: translateY(0); opacity: 0.9; } 50% { transform: translateY(-6px); opacity: 0.6; } }
-    .hint-text { font-size: 18px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.55); letter-spacing: 0.01em; }
+    .hint-cube { width: 78px; height: 78px; color: rgba(255,255,255,0.9);
+      filter: drop-shadow(0 2px 10px rgba(0,0,0,0.45)); animation: float 2.6s ease-in-out infinite; }
+    @keyframes float { 0%,100% { transform: translateY(0) rotate(0deg); opacity: 0.9; } 50% { transform: translateY(-6px) rotate(6deg); opacity: 0.6; } }
+    .hint-text { font-size: 18px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.55); }
 
-    /* ── 모드 토글 (1번 카드에서만) ───────────── */
+    /* 모드 토글 (큐브 인식 시 표시) */
     #toggle { position: fixed; left: 50%; transform: translateX(-50%) translateY(20px);
       bottom: calc(env(safe-area-inset-bottom, 20px) + 26px); z-index: 12;
       display: flex; align-items: center; padding: 6px; gap: 2px;
@@ -77,7 +74,6 @@
       transition: left 0.3s cubic-bezier(0.34,1.56,0.64,1); z-index: 0; }
     #toggle.shape #seg-pill { left: 50%; }
 
-    /* ── 반응형: iPad 가로 ───────────────────── */
     @media (orientation: landscape) and (min-width: 720px) {
       #toggle { bottom: calc(env(safe-area-inset-bottom, 24px) + 40px); padding: 7px; }
       .seg { min-width: 120px; height: 60px; font-size: 19px; }
@@ -90,27 +86,23 @@
 
 <div id="ar-container"></div>
 
-<!-- 스캔 안내 -->
 <div id="hint" class="hidden">
-  <svg class="hint-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="3" y="5" width="18" height="14" rx="2.5"/>
-    <path d="M7 15l3.2-3.4 2.3 2.2 2.4-3 2.1 2.6"/>
-    <circle cx="8.4" cy="9.2" r="1.2" fill="currentColor" stroke="none"/>
+  <svg class="hint-cube" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2l8 4.5v9L12 20l-8-4.5v-9L12 2z"/>
+    <path d="M12 2v9M12 11l8-4.5M12 11l-8-4.5M12 11v9"/>
   </svg>
-  <div class="hint-text">카드를 비춰주세요</div>
+  <div class="hint-text">큐브를 비춰주세요</div>
 </div>
 
-<!-- 모드 토글: 1번 카드 인식 시에만 표시 -->
 <div id="toggle">
   <div id="seg-pill"></div>
   <div class="seg active" id="seg-default">기본</div>
   <div class="seg" id="seg-shape">도형</div>
 </div>
 
-<!-- 시작 화면 -->
 <div id="splash">
   <div class="splash-logo">W<span>E</span>IV</div>
-  <div class="splash-title">카드를 비춰주세요</div>
+  <div class="splash-title">큐브를 비춰주세요</div>
   <button id="start-btn">시작</button>
   <div class="bar-wrap" id="bar-wrap"><div class="bar" id="bar"></div></div>
   <div id="loading-text">로딩 중...</div>
@@ -121,7 +113,7 @@
   </div>
 </div>
 
-<!-- 진단: 모듈/CDN 로딩 실패 시 화면이 조용히 멈추지 않고 원인 표시 -->
+<!-- 진단: 모듈/CDN 로딩 실패 시 원인 표시 -->
 <script>
   (function () {
     function surface(text) {
@@ -157,15 +149,27 @@
   const splashEl = $('splash'), startBtn = $('start-btn'), barWrap = $('bar-wrap'),
         bar = $('bar'), loadingTxt = $('loading-text'), errorBox = $('error-box'),
         hintEl = $('hint'), toggleEl = $('toggle');
-
-  // 워치독 오탐 복구 + 초기 상태 보장
   errorBox.classList.remove('show'); startBtn.style.display = '';
   barWrap.style.display = 'none'; loadingTxt.style.display = 'none';
 
   let started = false, isShape = false;
-  let card1Found = false, card2Found = false;
-  let carDefault = null, carShape = null, carFind = null;
   let mindarThree = null, renderer = null, scene = null, camera = null;
+  const foundFlags = [false,false,false,false,false,false];
+  const defaultClones = [], shapeClones = [];
+
+  /* 큐브 6면 배치 (마커 폭 = 큐브 한 변 = 1단위, 반 큐브 = 0.5).
+     각 면 앵커 밑에 face group을 두고, 그 로컬 행렬을 facePose⁻¹로 설정하면
+     group의 월드 = "큐브 몸체 프레임" → 어느 면을 봐도 모델이 큐브 중심에 고정된다.
+     targets.mind 순서: 0=FRONT,1=BACK,2=RIGHT,3=LEFT,4=TOP,5=BOTTOM */
+  const HALF = 0.5;
+  const FACES = [
+    { pos:[0,0, HALF], rot:[0, 0, 0] },            // FRONT (+Z)
+    { pos:[0,0,-HALF], rot:[0, Math.PI, 0] },      // BACK  (-Z)
+    { pos:[ HALF,0,0], rot:[0, Math.PI/2, 0] },    // RIGHT (+X)
+    { pos:[-HALF,0,0], rot:[0,-Math.PI/2, 0] },    // LEFT  (-X)
+    { pos:[0, HALF,0], rot:[-Math.PI/2, 0, 0] },   // TOP   (+Y)
+    { pos:[0,-HALF,0], rot:[ Math.PI/2, 0, 0] },   // BOTTOM(-Y)
+  ];
 
   function setProgress(pct, text) { bar.style.width = pct + '%'; loadingTxt.textContent = text; }
   function showProgress() {
@@ -179,15 +183,12 @@
     $('error-title').textContent = title; $('error-msg').textContent = msg;
     errorBox.classList.add('show');
   }
-  function updateHint() {
-    const anyFound = card1Found || card2Found;
+  function refreshUI() {
+    const anyFound = foundFlags.some(f => f);
     hintEl.classList.toggle('hidden', anyFound);
-  }
-  function updateToggle() {
-    toggleEl.classList.toggle('show', card1Found);      // 1번 카드에서만
+    toggleEl.classList.toggle('show', anyFound);
   }
 
-  // iOS Safari: 권한은 HTTPS + 탭 제스처 안에서. 무거운 로딩 전에 먼저 요청.
   async function requestCameraPermission() {
     if (!window.isSecureContext) throw { _kind: 'insecure' };
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw { _kind: 'unsupported' };
@@ -201,26 +202,19 @@
     stream.getTracks().forEach(t => t.stop());
   }
 
+  // 큐브 안에 들어가도록 최대 치수를 0.82로 맞추고 몸체 중심에 정렬
+  function prep(model) {
+    let box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    model.scale.setScalar(0.82 / Math.max(size.x, size.y, size.z));
+    model.updateMatrixWorld(true);
+    box = new THREE.Box3().setFromObject(model);
+    model.position.sub(box.getCenter(new THREE.Vector3()));
+    return model;
+  }
   function loadGLB(src) {
     return new Promise((resolve, reject) => {
-      new GLTFLoader().load(src, (gltf) => {
-        const model = gltf.scene;
-        // 최대 치수를 1로 정규화
-        let box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3());
-        const s = 1.0 / Math.max(size.x, size.y, size.z);
-        model.scale.setScalar(s);
-        // 카드를 바닥처럼: 모델 up(+Y)을 카드 법선(+Z)으로 눕혀 세우고,
-        // X·Y는 카드 중심, 밑면(바퀴)은 카드 면(z=0)에 닿게 배치
-        model.rotation.x = Math.PI / 2;
-        model.updateMatrixWorld(true);
-        box = new THREE.Box3().setFromObject(model);
-        const c = box.getCenter(new THREE.Vector3());
-        model.position.x -= c.x;
-        model.position.y -= c.y;
-        model.position.z -= box.min.z;   // 바퀴를 카드 표면에 안착
-        resolve(model);
-      }, undefined, reject);
+      new GLTFLoader().load(src, (gltf) => resolve(prep(gltf.scene)), undefined, reject);
     });
   }
 
@@ -246,38 +240,46 @@
       mindarThree = new MindARThree({
         container: $('ar-container'),
         imageTargetSrc: './targets.mind',
-        maxTrack: 2,                 // 두 카드 동시/독립 추적
+        maxTrack: 2,                              // 여러 면 동시 추적으로 전환 부드럽게
         uiLoading: 'no', uiScanning: 'no', uiError: 'no',
-        filterMinCF: 0.0001, filterBeta: 1000,   // 떨림(지터) 완화
+        filterMinCF: 0.0001, filterBeta: 1000,   // 떨림 완화
       });
       ({ renderer, scene, camera } = mindarThree);
     } catch (e) { started = false; showError('AR 엔진 로드 실패', '네트워크를 확인하고 다시 시도해 주세요.'); return; }
 
-    // 광원: 이전 대비 50%로 낮춤 (모델이 너무 밝게 날아가던 문제 완화)
     scene.add(new THREE.AmbientLight(0xffffff, 0.45));
     const dir = new THREE.DirectionalLight(0xffffff, 0.5); dir.position.set(0, 4, 5); scene.add(dir);
 
+    let carDefault, carShape;
     try {
-      setProgress(55, '모델 로딩 중... (1/3)');
+      setProgress(58, '모델 로딩 중... (1/2)');
       carDefault = await loadGLB('./car_default.glb');
-      setProgress(72, '모델 로딩 중... (2/3)');
+      setProgress(80, '모델 로딩 중... (2/2)');
       carShape = await loadGLB('./car_shape.glb');
-      setProgress(88, '모델 로딩 중... (3/3)');
-      carFind = await loadGLB('./car_find.glb');
     } catch (e) { started = false; showError('3D 모델 로드 실패', '모델 파일을 불러오지 못했어요.\n다시 시도해 주세요.'); return; }
 
-    // 1번 카드: 캠핑카 (기본/도형 토글)
-    const anchor1 = mindarThree.addAnchor(0);
-    anchor1.group.add(carDefault); anchor1.group.add(carShape);
-    carDefault.visible = !isShape; carShape.visible = isShape;
-    anchor1.onTargetFound = () => { card1Found = true; updateHint(); updateToggle(); };
-    anchor1.onTargetLost  = () => { card1Found = false; updateHint(); updateToggle(); };
+    // 6면 앵커: 각 면 밑에 face group(=큐브 몸체 프레임) + 모델 복제본
+    for (let i = 0; i < 6; i++) {
+      const anchor = mindarThree.addAnchor(i);
+      const facePose = new THREE.Matrix4().compose(
+        new THREE.Vector3(...FACES[i].pos),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...FACES[i].rot)),
+        new THREE.Vector3(1, 1, 1));
+      const faceGroup = new THREE.Group();
+      faceGroup.matrixAutoUpdate = false;
+      faceGroup.matrix.copy(facePose.invert());   // group world = 큐브 몸체 프레임
+      anchor.group.add(faceGroup);
 
-    // 2번 카드: 발견모드 (UI 없음)
-    const anchor2 = mindarThree.addAnchor(1);
-    anchor2.group.add(carFind);
-    anchor2.onTargetFound = () => { card2Found = true; updateHint(); };
-    anchor2.onTargetLost  = () => { card2Found = false; updateHint(); };
+      const dClone = carDefault.clone(true);
+      const sClone = carShape.clone(true);
+      dClone.visible = !isShape; sClone.visible = isShape;
+      faceGroup.add(dClone); faceGroup.add(sClone);
+      defaultClones.push(dClone); shapeClones.push(sClone);
+
+      const idx = i;
+      anchor.onTargetFound = () => { foundFlags[idx] = true; refreshUI(); };
+      anchor.onTargetLost  = () => { foundFlags[idx] = false; refreshUI(); };
+    }
 
     setProgress(96, 'AR 시작 중...');
     try { await mindarThree.start(); }
@@ -296,8 +298,7 @@
 
     renderer.setAnimationLoop(() => renderer.render(scene, camera));
 
-    // 레이아웃(주소창·Safe Area·스플래시 제거)이 안정된 뒤 정렬을 다시 계산해
-    // 모델이 한쪽으로 밀리는 현상을 방지 (MindAR는 'resize' 이벤트에 반응).
+    // 레이아웃 안정 후 정렬 재계산(밀림 방지)
     forceResize(); setTimeout(forceResize, 300); setTimeout(forceResize, 800); setTimeout(forceResize, 1600);
   }
 
@@ -311,13 +312,16 @@
     setProgress(0, '로딩 중...'); start();
   });
 
-  // 기본 ↔ 도형 토글 (1번 카드 모델만 전환, 애니메이션 없음)
+  // 기본 ↔ 도형 (6면 복제본 모두 전환)
   function setShape(v) {
     isShape = v;
     toggleEl.classList.toggle('shape', isShape);
     $('seg-default').classList.toggle('active', !isShape);
     $('seg-shape').classList.toggle('active', isShape);
-    if (carDefault && carShape) { carDefault.visible = !isShape; carShape.visible = isShape; }
+    for (let i = 0; i < defaultClones.length; i++) {
+      defaultClones[i].visible = !isShape;
+      shapeClones[i].visible = isShape;
+    }
   }
   $('seg-default').addEventListener('click', () => setShape(false));
   $('seg-shape').addEventListener('click', () => setShape(true));
