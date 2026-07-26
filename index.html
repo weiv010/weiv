@@ -154,8 +154,9 @@
 
   let started = false, isShape = false;
   let mindarThree = null, renderer = null, scene = null, camera = null;
+  let carDefault = null, carShape = null, cubeModel = null;
   const foundFlags = [false,false,false,false,false,false];
-  const defaultClones = [], shapeClones = [];
+  const anchors = [];
 
   /* 큐브 6면 배치 (마커 폭 = 큐브 한 변 = 1단위, 반 큐브 = 0.5).
      각 면 앵커 밑에 face group을 두고, 그 로컬 행렬을 facePose⁻¹로 설정하면
@@ -171,6 +172,12 @@
     { pos:[0, HALF,0], rot:[-Math.PI/2, 0, 0] },   // TOP   (+Y)
     { pos:[0,-HALF,0], rot:[ Math.PI/2, 0, 0] },   // BOTTOM(-Y)
   ];
+  const ONE = new THREE.Vector3(1, 1, 1);
+  // 각 면의 (큐브몸체→마커) 역행렬. 마커월드 ∘ facePoseInv = 큐브 몸체 월드
+  const facePoseInv = FACES.map(f => new THREE.Matrix4().compose(
+    new THREE.Vector3(...f.pos),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(...f.rot)),
+    new THREE.Vector3(1, 1, 1)).invert());
 
   function setProgress(pct, text) { bar.style.width = pct + '%'; loadingTxt.textContent = text; }
   function showProgress() {
@@ -241,7 +248,7 @@
       mindarThree = new MindARThree({
         container: $('ar-container'),
         imageTargetSrc: './targets.mind',
-        maxTrack: 2,                              // 여러 면 동시 추적으로 전환 부드럽게
+        maxTrack: 3,                              // 여러 면 동시 추적 → 자세 융합으로 연속 회전
         uiLoading: 'no', uiScanning: 'no', uiError: 'no',
         filterMinCF: 0.00001, filterBeta: 600,   // 떨림 완화(큐브: 모델이 마커에서 떨어져 증폭되므로 더 강하게)
       });
@@ -251,7 +258,6 @@
     scene.add(new THREE.AmbientLight(0xffffff, 0.45));
     const dir = new THREE.DirectionalLight(0xffffff, 0.5); dir.position.set(0, 4, 5); scene.add(dir);
 
-    let carDefault, carShape;
     try {
       setProgress(58, '모델 로딩 중... (1/2)');
       carDefault = await loadGLB('./car_default.glb');
@@ -259,27 +265,21 @@
       carShape = await loadGLB('./car_shape.glb');
     } catch (e) { started = false; showError('3D 모델 로드 실패', '모델 파일을 불러오지 못했어요.\n다시 시도해 주세요.'); return; }
 
-    // 6면 앵커: 각 면 밑에 face group(=큐브 몸체 프레임) + 모델 복제본
+    // 단일 모델을 큐브 몸체에 두고, 매 프레임 '보이는 면들의 자세'를 융합해 배치한다.
+    // → 면이 바뀌어도 튀지 않고, 큐브가 곧 모델인 것처럼 연속 회전한다.
+    cubeModel = new THREE.Group();
+    cubeModel.matrixAutoUpdate = false;
+    cubeModel.visible = false;
+    carDefault.visible = !isShape; carShape.visible = isShape;
+    cubeModel.add(carDefault); cubeModel.add(carShape);
+    scene.add(cubeModel);
+
     for (let i = 0; i < 6; i++) {
-      const anchor = mindarThree.addAnchor(i);
-      const facePose = new THREE.Matrix4().compose(
-        new THREE.Vector3(...FACES[i].pos),
-        new THREE.Quaternion().setFromEuler(new THREE.Euler(...FACES[i].rot)),
-        new THREE.Vector3(1, 1, 1));
-      const faceGroup = new THREE.Group();
-      faceGroup.matrixAutoUpdate = false;
-      faceGroup.matrix.copy(facePose.invert());   // group world = 큐브 몸체 프레임
-      anchor.group.add(faceGroup);
-
-      const dClone = carDefault.clone(true);
-      const sClone = carShape.clone(true);
-      dClone.visible = !isShape; sClone.visible = isShape;
-      faceGroup.add(dClone); faceGroup.add(sClone);
-      defaultClones.push(dClone); shapeClones.push(sClone);
-
+      const anchor = mindarThree.addAnchor(i);   // 추적 전용(모델은 붙이지 않음)
       const idx = i;
       anchor.onTargetFound = () => { foundFlags[idx] = true; refreshUI(); };
       anchor.onTargetLost  = () => { foundFlags[idx] = false; refreshUI(); };
+      anchors.push(anchor);
     }
 
     setProgress(96, 'AR 시작 중...');
@@ -297,7 +297,37 @@
       setTimeout(() => { splashEl.style.display = 'none'; hintEl.classList.remove('hidden'); }, 500);
     }, 250);
 
-    renderer.setAnimationLoop(() => renderer.render(scene, camera));
+    // 보이는 면들의 큐브 자세를 평균 융합 + 시간 스무딩 → 단일 모델을 연속 회전
+    const _m = new THREE.Matrix4(), _pos = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
+    const avgP = new THREE.Vector3(), refQ = new THREE.Quaternion(), avgQ = new THREE.Quaternion();
+    const curP = new THREE.Vector3(), curQ = new THREE.Quaternion();
+    let hasPose = false;
+    renderer.setAnimationLoop(() => {
+      let n = 0, ax = 0, ay = 0, az = 0, aw = 0, refset = false;
+      avgP.set(0, 0, 0);
+      for (let i = 0; i < 6; i++) {
+        if (!foundFlags[i]) continue;
+        _m.multiplyMatrices(anchors[i].group.matrix, facePoseInv[i]);
+        _m.decompose(_pos, _q, _s);
+        avgP.add(_pos);
+        if (!refset) { refQ.copy(_q); refset = true; }
+        const sgn = _q.dot(refQ) < 0 ? -1 : 1;      // 같은 반구로 정렬 후 누적
+        ax += _q.x * sgn; ay += _q.y * sgn; az += _q.z * sgn; aw += _q.w * sgn;
+        n++;
+      }
+      if (n > 0) {
+        avgP.multiplyScalar(1 / n);
+        avgQ.set(ax, ay, az, aw).normalize();
+        if (!hasPose) { curP.copy(avgP); curQ.copy(avgQ); hasPose = true; }
+        else { curP.lerp(avgP, 0.35); curQ.slerp(avgQ, 0.35); }   // 시간 스무딩(연속성)
+        cubeModel.matrix.compose(curP, curQ, ONE);
+        cubeModel.matrixWorldNeedsUpdate = true;
+        cubeModel.visible = true;
+      } else {
+        cubeModel.visible = false; hasPose = false;
+      }
+      renderer.render(scene, camera);
+    });
 
     // 레이아웃 안정 후 정렬 재계산(밀림 방지)
     forceResize(); setTimeout(forceResize, 300); setTimeout(forceResize, 800); setTimeout(forceResize, 1600);
@@ -319,10 +349,7 @@
     toggleEl.classList.toggle('shape', isShape);
     $('seg-default').classList.toggle('active', !isShape);
     $('seg-shape').classList.toggle('active', isShape);
-    for (let i = 0; i < defaultClones.length; i++) {
-      defaultClones[i].visible = !isShape;
-      shapeClones[i].visible = isShape;
-    }
+    if (carDefault && carShape) { carDefault.visible = !isShape; carShape.visible = isShape; }
   }
   $('seg-default').addEventListener('click', () => setShape(false));
   $('seg-shape').addEventListener('click', () => setShape(true));
