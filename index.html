@@ -162,6 +162,7 @@
      group의 월드 = "큐브 몸체 프레임" → 어느 면을 봐도 모델이 큐브 중심에 고정된다.
      targets.mind 순서: 0=FRONT,1=BACK,2=RIGHT,3=LEFT,4=TOP,5=BOTTOM */
   const HALF = 0.5;
+  const MODEL_SCALE = 1.5;   // 큐브 한 변(1) 대비 모델 최대 치수 → 1.5면 큐브보다 커서 큐브를 가림
   const FACES = [
     { pos:[0,0, HALF], rot:[0, 0, 0] },            // FRONT (+Z)
     { pos:[0,0,-HALF], rot:[0, Math.PI, 0] },      // BACK  (-Z)
@@ -202,11 +203,11 @@
     stream.getTracks().forEach(t => t.stop());
   }
 
-  // 큐브 안에 들어가도록 최대 치수를 0.82로 맞추고 몸체 중심에 정렬
+  // 최대 치수를 MODEL_SCALE로 맞추고 큐브 몸체 중심에 정렬
   function prep(model) {
     let box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
-    model.scale.setScalar(0.82 / Math.max(size.x, size.y, size.z));
+    model.scale.setScalar(MODEL_SCALE / Math.max(size.x, size.y, size.z));
     model.updateMatrixWorld(true);
     box = new THREE.Box3().setFromObject(model);
     model.position.sub(box.getCenter(new THREE.Vector3()));
@@ -242,7 +243,7 @@
         imageTargetSrc: './targets.mind',
         maxTrack: 2,                              // 여러 면 동시 추적으로 전환 부드럽게
         uiLoading: 'no', uiScanning: 'no', uiError: 'no',
-        filterMinCF: 0.0001, filterBeta: 1000,   // 떨림 완화
+        filterMinCF: 0.00001, filterBeta: 600,   // 떨림 완화(큐브: 모델이 마커에서 떨어져 증폭되므로 더 강하게)
       });
       ({ renderer, scene, camera } = mindarThree);
     } catch (e) { started = false; showError('AR 엔진 로드 실패', '네트워크를 확인하고 다시 시도해 주세요.'); return; }
