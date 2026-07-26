@@ -301,6 +301,7 @@
     const _m = new THREE.Matrix4(), _pos = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
     const avgP = new THREE.Vector3(), refQ = new THREE.Quaternion(), avgQ = new THREE.Quaternion();
     const curP = new THREE.Vector3(), curQ = new THREE.Quaternion();
+    const sclV = new THREE.Vector3(1, 1, 1);   // 앵커 행렬의 마커 스케일 보존
     let hasPose = false;
     renderer.setAnimationLoop(() => {
       let n = 0, ax = 0, ay = 0, az = 0, aw = 0, refset = false;
@@ -310,6 +311,7 @@
         _m.multiplyMatrices(anchors[i].group.matrix, facePoseInv[i]);
         _m.decompose(_pos, _q, _s);
         avgP.add(_pos);
+        sclV.copy(_s);                              // 모든 면 동일(마커 폭) → 마지막 값 사용
         if (!refset) { refQ.copy(_q); refset = true; }
         const sgn = _q.dot(refQ) < 0 ? -1 : 1;      // 같은 반구로 정렬 후 누적
         ax += _q.x * sgn; ay += _q.y * sgn; az += _q.z * sgn; aw += _q.w * sgn;
@@ -320,7 +322,7 @@
         avgQ.set(ax, ay, az, aw).normalize();
         if (!hasPose) { curP.copy(avgP); curQ.copy(avgQ); hasPose = true; }
         else { curP.lerp(avgP, 0.35); curQ.slerp(avgQ, 0.35); }   // 시간 스무딩(연속성)
-        cubeModel.matrix.compose(curP, curQ, ONE);
+        cubeModel.matrix.compose(curP, curQ, sclV);
         cubeModel.matrixWorldNeedsUpdate = true;
         cubeModel.visible = true;
       } else {
