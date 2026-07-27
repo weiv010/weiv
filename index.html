@@ -252,9 +252,16 @@
       carShape = await loadGLB('./car_shape.glb');
     } catch (e) { started = false; showError('3D 모델 로드 실패', '모델 파일을 불러오지 못했어요.\n다시 시도해 주세요.'); return; }
 
-    const anchor = mindarThree.addAnchor(0);
-    anchor.group.add(carDefault); anchor.group.add(carShape);
+    // 모델을 앵커에 직접 붙이지 않고, 매 프레임 앵커 자세를 '강체화'(회전 정규화 + 균일 스케일)해
+    // 적용한다 → 비스듬한 각도에서 생기는 전단(찌그러짐)을 제거한다.
+    const modelGroup = new THREE.Group();
+    modelGroup.matrixAutoUpdate = false;
+    modelGroup.visible = false;
     carDefault.visible = !isShape; carShape.visible = isShape;
+    modelGroup.add(carDefault); modelGroup.add(carShape);
+    scene.add(modelGroup);
+
+    const anchor = mindarThree.addAnchor(0);
     anchor.onTargetFound = () => { found = true; refreshUI(); };
     anchor.onTargetLost  = () => { found = false; refreshUI(); };
 
@@ -273,7 +280,20 @@
       setTimeout(() => { splashEl.style.display = 'none'; hintEl.classList.remove('hidden'); }, 500);
     }, 250);
 
-    renderer.setAnimationLoop(() => renderer.render(scene, camera));
+    const _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _u = new THREE.Vector3();
+    renderer.setAnimationLoop(() => {
+      if (found) {
+        anchor.group.matrix.decompose(_p, _q, _s);          // 회전을 쿼터니언으로 정규화
+        const us = (Math.abs(_s.x) + Math.abs(_s.y) + Math.abs(_s.z)) / 3;
+        _u.set(us, us, us);                                  // 균일 스케일 강제(전단 제거)
+        modelGroup.matrix.compose(_p, _q, _u);
+        modelGroup.matrixWorldNeedsUpdate = true;
+        modelGroup.visible = true;
+      } else {
+        modelGroup.visible = false;
+      }
+      renderer.render(scene, camera);
+    });
 
     forceResize(); setTimeout(forceResize, 300); setTimeout(forceResize, 800); setTimeout(forceResize, 1600);
   }
