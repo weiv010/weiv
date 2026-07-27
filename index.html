@@ -155,8 +155,7 @@
   errorBox.classList.remove('show'); startBtn.style.display = '';
   barWrap.style.display = 'none'; loadingTxt.style.display = 'none';
 
-  const MODEL_SCALE = 0.7;   // 카드 폭 대비 모델 최대 치수(낮게 → 떨림 증폭 감소)
-  const SMOOTH = 0.25;       // 시간 스무딩 강도(작을수록 부드럽지만 더 느리게 따라옴)
+  const MODEL_SCALE = 1.0;   // 카드 폭 대비 모델 최대 치수
   let started = false, isShape = false, found = false;
   let carDefault = null, carShape = null;
   let mindarThree = null, renderer = null, scene = null, camera = null;
@@ -238,7 +237,7 @@
         // warmup은 짧게(빨리 표시). filterMinCF는 떨림 완화.
         warmupTolerance: 2,
         missTolerance: 20,
-        filterMinCF: 0.0001, filterBeta: 1000,
+        filterMinCF: 0.001, filterBeta: 1000,   // 반응 우선(빠르게 따라옴)
       });
       ({ renderer, scene, camera } = mindarThree);
     } catch (e) { started = false; showError('AR 엔진 로드 실패', '네트워크를 확인하고 다시 시도해 주세요.'); return; }
@@ -253,16 +252,10 @@
       carShape = await loadGLB('./car_shape.glb');
     } catch (e) { started = false; showError('3D 모델 로드 실패', '모델 파일을 불러오지 못했어요.\n다시 시도해 주세요.'); return; }
 
-    // 모델을 앵커에 직접 붙이지 않고, 매 프레임 앵커 자세를 '강체화'(회전 정규화 + 균일 스케일)해
-    // 적용한다 → 비스듬한 각도에서 생기는 전단(찌그러짐)을 제거한다.
-    const modelGroup = new THREE.Group();
-    modelGroup.matrixAutoUpdate = false;
-    modelGroup.visible = false;
-    carDefault.visible = !isShape; carShape.visible = isShape;
-    modelGroup.add(carDefault); modelGroup.add(carShape);
-    scene.add(modelGroup);
-
+    // 모델을 앵커에 직접 붙임 → MindAR 원본 자세를 그대로(가장 빠른 반응)
     const anchor = mindarThree.addAnchor(0);
+    anchor.group.add(carDefault); anchor.group.add(carShape);
+    carDefault.visible = !isShape; carShape.visible = isShape;
     anchor.onTargetFound = () => { found = true; refreshUI(); };
     anchor.onTargetLost  = () => { found = false; refreshUI(); };
 
@@ -281,28 +274,7 @@
       setTimeout(() => { splashEl.style.display = 'none'; hintEl.classList.remove('hidden'); }, 500);
     }, 250);
 
-    const _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _u = new THREE.Vector3();
-    const curP = new THREE.Vector3(), curQ = new THREE.Quaternion();
-    let curScl = 1, hasPose = false;
-    renderer.setAnimationLoop(() => {
-      if (found) {
-        anchor.group.matrix.decompose(_p, _q, _s);          // 회전을 쿼터니언으로 정규화
-        const us = (Math.abs(_s.x) + Math.abs(_s.y) + Math.abs(_s.z)) / 3;  // 균일 스케일(전단 제거)
-        if (!hasPose) { curP.copy(_p); curQ.copy(_q); curScl = us; hasPose = true; }
-        else {                                               // 시간 스무딩 → 떨림 완화
-          curP.lerp(_p, SMOOTH);
-          curQ.slerp(_q, SMOOTH);
-          curScl += (us - curScl) * SMOOTH;
-        }
-        _u.set(curScl, curScl, curScl);
-        modelGroup.matrix.compose(curP, curQ, _u);
-        modelGroup.matrixWorldNeedsUpdate = true;
-        modelGroup.visible = true;
-      } else {
-        modelGroup.visible = false; hasPose = false;
-      }
-      renderer.render(scene, camera);
-    });
+    renderer.setAnimationLoop(() => renderer.render(scene, camera));
 
     forceResize(); setTimeout(forceResize, 300); setTimeout(forceResize, 800); setTimeout(forceResize, 1600);
   }
