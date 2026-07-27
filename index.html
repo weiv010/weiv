@@ -237,7 +237,7 @@
         // warmup은 짧게(빨리 표시). filterMinCF는 떨림 완화.
         warmupTolerance: 2,
         missTolerance: 20,
-        filterMinCF: 0.001, filterBeta: 1000,   // 반응 우선(빠르게 따라옴)
+        filterMinCF: 0.0004, filterBeta: 1000,   // 정지 시 떨림만 완화(움직일 땐 여전히 빠르게)
       });
       ({ renderer, scene, camera } = mindarThree);
     } catch (e) { started = false; showError('AR 엔진 로드 실패', '네트워크를 확인하고 다시 시도해 주세요.'); return; }
