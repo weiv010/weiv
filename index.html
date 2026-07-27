@@ -155,7 +155,8 @@
   errorBox.classList.remove('show'); startBtn.style.display = '';
   barWrap.style.display = 'none'; loadingTxt.style.display = 'none';
 
-  const MODEL_SCALE = 1.0;   // 카드 폭 대비 모델 최대 치수
+  const MODEL_SCALE = 0.7;   // 카드 폭 대비 모델 최대 치수(낮게 → 떨림 증폭 감소)
+  const SMOOTH = 0.25;       // 시간 스무딩 강도(작을수록 부드럽지만 더 느리게 따라옴)
   let started = false, isShape = false, found = false;
   let carDefault = null, carShape = null;
   let mindarThree = null, renderer = null, scene = null, camera = null;
@@ -281,16 +282,24 @@
     }, 250);
 
     const _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _u = new THREE.Vector3();
+    const curP = new THREE.Vector3(), curQ = new THREE.Quaternion();
+    let curScl = 1, hasPose = false;
     renderer.setAnimationLoop(() => {
       if (found) {
         anchor.group.matrix.decompose(_p, _q, _s);          // 회전을 쿼터니언으로 정규화
-        const us = (Math.abs(_s.x) + Math.abs(_s.y) + Math.abs(_s.z)) / 3;
-        _u.set(us, us, us);                                  // 균일 스케일 강제(전단 제거)
-        modelGroup.matrix.compose(_p, _q, _u);
+        const us = (Math.abs(_s.x) + Math.abs(_s.y) + Math.abs(_s.z)) / 3;  // 균일 스케일(전단 제거)
+        if (!hasPose) { curP.copy(_p); curQ.copy(_q); curScl = us; hasPose = true; }
+        else {                                               // 시간 스무딩 → 떨림 완화
+          curP.lerp(_p, SMOOTH);
+          curQ.slerp(_q, SMOOTH);
+          curScl += (us - curScl) * SMOOTH;
+        }
+        _u.set(curScl, curScl, curScl);
+        modelGroup.matrix.compose(curP, curQ, _u);
         modelGroup.matrixWorldNeedsUpdate = true;
         modelGroup.visible = true;
       } else {
-        modelGroup.visible = false;
+        modelGroup.visible = false; hasPose = false;
       }
       renderer.render(scene, camera);
     });
