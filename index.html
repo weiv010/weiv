@@ -51,12 +51,13 @@
       display: flex; flex-direction: column; align-items: center; gap: 16px; width: 84%;
       pointer-events: none; transition: opacity 0.5s; }
     #hint.hidden { opacity: 0; }
-    .hint-cube { width: 78px; height: 78px; color: rgba(255,255,255,0.9);
-      filter: drop-shadow(0 2px 10px rgba(0,0,0,0.45)); animation: float 2.6s ease-in-out infinite; }
-    @keyframes float { 0%,100% { transform: translateY(0) rotate(0deg); opacity: 0.9; } 50% { transform: translateY(-6px) rotate(6deg); opacity: 0.6; } }
+    .hint-card { width: 76px; height: 76px; color: rgba(255,255,255,0.9);
+      filter: drop-shadow(0 2px 10px rgba(0,0,0,0.45)); animation: float 2.4s ease-in-out infinite; }
+    @keyframes float { 0%,100% { transform: translateY(0); opacity: 0.9; } 50% { transform: translateY(-6px); opacity: 0.6; } }
     .hint-text { font-size: 18px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.55); }
+    .hint-sub { font-size: 12px; color: rgba(255,255,255,0.55); text-align: center; }
 
-    /* 모드 토글 (큐브 인식 시 표시) */
+    /* 모드 토글 */
     #toggle { position: fixed; left: 50%; transform: translateX(-50%) translateY(20px);
       bottom: calc(env(safe-area-inset-bottom, 20px) + 26px); z-index: 12;
       display: flex; align-items: center; padding: 6px; gap: 2px;
@@ -87,11 +88,13 @@
 <div id="ar-container"></div>
 
 <div id="hint" class="hidden">
-  <svg class="hint-cube" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M12 2l8 4.5v9L12 20l-8-4.5v-9L12 2z"/>
-    <path d="M12 2v9M12 11l8-4.5M12 11l-8-4.5M12 11v9"/>
+  <svg class="hint-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="5" width="18" height="14" rx="2.5"/>
+    <path d="M7 15l3.2-3.4 2.3 2.2 2.4-3 2.1 2.6"/>
+    <circle cx="8.4" cy="9.2" r="1.2" fill="currentColor" stroke="none"/>
   </svg>
-  <div class="hint-text">큐브를 비춰주세요</div>
+  <div class="hint-text">카드를 비춰주세요</div>
+  <div class="hint-sub">인식 후 카드를 천천히 기울이면 옆·뒤도 볼 수 있어요</div>
 </div>
 
 <div id="toggle">
@@ -102,7 +105,7 @@
 
 <div id="splash">
   <div class="splash-logo">W<span>E</span>IV</div>
-  <div class="splash-title">큐브를 비춰주세요</div>
+  <div class="splash-title">카드를 비춰주세요</div>
   <button id="start-btn">시작</button>
   <div class="bar-wrap" id="bar-wrap"><div class="bar" id="bar"></div></div>
   <div id="loading-text">로딩 중...</div>
@@ -152,32 +155,10 @@
   errorBox.classList.remove('show'); startBtn.style.display = '';
   barWrap.style.display = 'none'; loadingTxt.style.display = 'none';
 
-  let started = false, isShape = false;
+  const MODEL_SCALE = 1.0;   // 카드 폭 대비 모델 최대 치수
+  let started = false, isShape = false, found = false;
+  let carDefault = null, carShape = null;
   let mindarThree = null, renderer = null, scene = null, camera = null;
-  let carDefault = null, carShape = null, cubeModel = null;
-  const foundFlags = [false,false,false,false,false,false];
-  const anchors = [];
-
-  /* 큐브 6면 배치 (마커 폭 = 큐브 한 변 = 1단위, 반 큐브 = 0.5).
-     각 면 앵커 밑에 face group을 두고, 그 로컬 행렬을 facePose⁻¹로 설정하면
-     group의 월드 = "큐브 몸체 프레임" → 어느 면을 봐도 모델이 큐브 중심에 고정된다.
-     targets.mind 순서: 0=FRONT,1=BACK,2=RIGHT,3=LEFT,4=TOP,5=BOTTOM */
-  const HALF = 0.5;
-  const MODEL_SCALE = 1.5;   // 큐브 한 변(1) 대비 모델 최대 치수 → 1.5면 큐브보다 커서 큐브를 가림
-  const FACES = [
-    { pos:[0,0, HALF], rot:[0, 0, 0] },            // FRONT (+Z)
-    { pos:[0,0,-HALF], rot:[0, Math.PI, 0] },      // BACK  (-Z)
-    { pos:[ HALF,0,0], rot:[0, Math.PI/2, 0] },    // RIGHT (+X)
-    { pos:[-HALF,0,0], rot:[0,-Math.PI/2, 0] },    // LEFT  (-X)
-    { pos:[0, HALF,0], rot:[-Math.PI/2, 0, 0] },   // TOP   (+Y)
-    { pos:[0,-HALF,0], rot:[ Math.PI/2, 0, 0] },   // BOTTOM(-Y)
-  ];
-  const ONE = new THREE.Vector3(1, 1, 1);
-  // 각 면의 (큐브몸체→마커) 역행렬. 마커월드 ∘ facePoseInv = 큐브 몸체 월드
-  const facePoseInv = FACES.map(f => new THREE.Matrix4().compose(
-    new THREE.Vector3(...f.pos),
-    new THREE.Quaternion().setFromEuler(new THREE.Euler(...f.rot)),
-    new THREE.Vector3(1, 1, 1)).invert());
 
   function setProgress(pct, text) { bar.style.width = pct + '%'; loadingTxt.textContent = text; }
   function showProgress() {
@@ -192,9 +173,8 @@
     errorBox.classList.add('show');
   }
   function refreshUI() {
-    const anyFound = foundFlags.some(f => f);
-    hintEl.classList.toggle('hidden', anyFound);
-    toggleEl.classList.toggle('show', anyFound);
+    hintEl.classList.toggle('hidden', found);
+    toggleEl.classList.toggle('show', found);
   }
 
   async function requestCameraPermission() {
@@ -210,14 +190,18 @@
     stream.getTracks().forEach(t => t.stop());
   }
 
-  // 최대 치수를 MODEL_SCALE로 맞추고 큐브 몸체 중심에 정렬
+  // 카드를 바닥처럼: up(+Y)을 카드 법선(+Z)으로 세우고, X·Y 중심 정렬, 밑면을 카드 면(z=0)에
   function prep(model) {
     let box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
     model.scale.setScalar(MODEL_SCALE / Math.max(size.x, size.y, size.z));
+    model.rotation.x = Math.PI / 2;
     model.updateMatrixWorld(true);
     box = new THREE.Box3().setFromObject(model);
-    model.position.sub(box.getCenter(new THREE.Vector3()));
+    const c = box.getCenter(new THREE.Vector3());
+    model.position.x -= c.x;
+    model.position.y -= c.y;
+    model.position.z -= box.min.z;
     return model;
   }
   function loadGLB(src) {
@@ -248,9 +232,12 @@
       mindarThree = new MindARThree({
         container: $('ar-container'),
         imageTargetSrc: './targets.mind',
-        maxTrack: 3,                              // 여러 면 동시 추적 → 자세 융합으로 연속 회전
         uiLoading: 'no', uiScanning: 'no', uiError: 'no',
-        filterMinCF: 0.00001, filterBeta: 600,   // 떨림 완화(큐브: 모델이 마커에서 떨어져 증폭되므로 더 강하게)
+        // 각도 강인성: 한 번 인식하면 웬만큼 기울여도 유지되도록 miss 관용을 크게,
+        // warmup은 짧게(빨리 표시). filterMinCF는 떨림 완화.
+        warmupTolerance: 2,
+        missTolerance: 20,
+        filterMinCF: 0.0001, filterBeta: 1000,
       });
       ({ renderer, scene, camera } = mindarThree);
     } catch (e) { started = false; showError('AR 엔진 로드 실패', '네트워크를 확인하고 다시 시도해 주세요.'); return; }
@@ -261,26 +248,15 @@
     try {
       setProgress(58, '모델 로딩 중... (1/2)');
       carDefault = await loadGLB('./car_default.glb');
-      setProgress(80, '모델 로딩 중... (2/2)');
+      setProgress(82, '모델 로딩 중... (2/2)');
       carShape = await loadGLB('./car_shape.glb');
     } catch (e) { started = false; showError('3D 모델 로드 실패', '모델 파일을 불러오지 못했어요.\n다시 시도해 주세요.'); return; }
 
-    // 단일 모델을 큐브 몸체에 두고, 매 프레임 '보이는 면들의 자세'를 융합해 배치한다.
-    // → 면이 바뀌어도 튀지 않고, 큐브가 곧 모델인 것처럼 연속 회전한다.
-    cubeModel = new THREE.Group();
-    cubeModel.matrixAutoUpdate = false;
-    cubeModel.visible = false;
+    const anchor = mindarThree.addAnchor(0);
+    anchor.group.add(carDefault); anchor.group.add(carShape);
     carDefault.visible = !isShape; carShape.visible = isShape;
-    cubeModel.add(carDefault); cubeModel.add(carShape);
-    scene.add(cubeModel);
-
-    for (let i = 0; i < 6; i++) {
-      const anchor = mindarThree.addAnchor(i);   // 추적 전용(모델은 붙이지 않음)
-      const idx = i;
-      anchor.onTargetFound = () => { foundFlags[idx] = true; refreshUI(); };
-      anchor.onTargetLost  = () => { foundFlags[idx] = false; refreshUI(); };
-      anchors.push(anchor);
-    }
+    anchor.onTargetFound = () => { found = true; refreshUI(); };
+    anchor.onTargetLost  = () => { found = false; refreshUI(); };
 
     setProgress(96, 'AR 시작 중...');
     try { await mindarThree.start(); }
@@ -297,41 +273,8 @@
       setTimeout(() => { splashEl.style.display = 'none'; hintEl.classList.remove('hidden'); }, 500);
     }, 250);
 
-    // 보이는 면들의 큐브 자세를 평균 융합 + 시간 스무딩 → 단일 모델을 연속 회전
-    const _m = new THREE.Matrix4(), _pos = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
-    const avgP = new THREE.Vector3(), refQ = new THREE.Quaternion(), avgQ = new THREE.Quaternion();
-    const curP = new THREE.Vector3(), curQ = new THREE.Quaternion();
-    const sclV = new THREE.Vector3(1, 1, 1);   // 앵커 행렬의 마커 스케일 보존
-    let hasPose = false;
-    renderer.setAnimationLoop(() => {
-      let n = 0, ax = 0, ay = 0, az = 0, aw = 0, refset = false;
-      avgP.set(0, 0, 0);
-      for (let i = 0; i < 6; i++) {
-        if (!foundFlags[i]) continue;
-        _m.multiplyMatrices(anchors[i].group.matrix, facePoseInv[i]);
-        _m.decompose(_pos, _q, _s);
-        avgP.add(_pos);
-        sclV.copy(_s);                              // 모든 면 동일(마커 폭) → 마지막 값 사용
-        if (!refset) { refQ.copy(_q); refset = true; }
-        const sgn = _q.dot(refQ) < 0 ? -1 : 1;      // 같은 반구로 정렬 후 누적
-        ax += _q.x * sgn; ay += _q.y * sgn; az += _q.z * sgn; aw += _q.w * sgn;
-        n++;
-      }
-      if (n > 0) {
-        avgP.multiplyScalar(1 / n);
-        avgQ.set(ax, ay, az, aw).normalize();
-        if (!hasPose) { curP.copy(avgP); curQ.copy(avgQ); hasPose = true; }
-        else { curP.lerp(avgP, 0.35); curQ.slerp(avgQ, 0.35); }   // 시간 스무딩(연속성)
-        cubeModel.matrix.compose(curP, curQ, sclV);
-        cubeModel.matrixWorldNeedsUpdate = true;
-        cubeModel.visible = true;
-      } else {
-        cubeModel.visible = false; hasPose = false;
-      }
-      renderer.render(scene, camera);
-    });
+    renderer.setAnimationLoop(() => renderer.render(scene, camera));
 
-    // 레이아웃 안정 후 정렬 재계산(밀림 방지)
     forceResize(); setTimeout(forceResize, 300); setTimeout(forceResize, 800); setTimeout(forceResize, 1600);
   }
 
@@ -345,7 +288,6 @@
     setProgress(0, '로딩 중...'); start();
   });
 
-  // 기본 ↔ 도형 (6면 복제본 모두 전환)
   function setShape(v) {
     isShape = v;
     toggleEl.classList.toggle('shape', isShape);
