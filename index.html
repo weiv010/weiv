@@ -315,7 +315,7 @@
     setLightAngle(0.5);                                   // 초기 광원 방향
     scene.add(ambient, dirLight);
 
-    let bear2, shapes3;
+    let bear2, bear3;
     try {
       setProgress(45, '모델 로딩 중... (1/4)');
       bearDefault = await loadGLB('./teddybear1_default.glb');
@@ -324,7 +324,7 @@
       setProgress(80, '모델 로딩 중... (3/4)');
       bear2 = await loadGLB('./teddybear2.glb');
       setProgress(90, '모델 로딩 중... (4/4)');
-      shapes3 = await loadGLB('./teddybear1_shape.glb');   // STEP3 기본도형(별도 인스턴스)
+      bear3 = await loadGLB('./teddybear1_default.glb');   // STEP3 곰만(명암 관찰) — 별도 인스턴스
     } catch (e) { started = false; showError('3D 모델 로드 실패', '모델 파일을 불러오지 못했어요.\n다시 시도해 주세요.'); return; }
 
     // STEP1 (target 0): 기본/도형 토글
@@ -340,9 +340,9 @@
     a2.onTargetFound = () => { foundStep[2] = true; refreshUI(); };
     a2.onTargetLost  = () => { foundStep[2] = false; refreshUI(); };
 
-    // STEP3 (target 2): 기본도형 + 광원
+    // STEP3 (target 2): 곰만 + 광원(명암)
     const a3 = mindarThree.addAnchor(2);
-    a3.group.add(shapes3);
+    a3.group.add(bear3);
     a3.onTargetFound = () => { foundStep[3] = true; refreshUI(); };
     a3.onTargetLost  = () => { foundStep[3] = false; refreshUI(); };
 
